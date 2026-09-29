@@ -1,0 +1,2102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOKIA Snake — Booth Edition</title>
+<style>
+  :root{
+    --hud-fg:#0B1B3A;
+    --accent:#005AFF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:#F4F6FB;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    overflow:hidden;transition:background .8s linear;
+    user-select:none;-webkit-user-select:none;
+  }
+  #roomGlow{position:fixed;inset:0;pointer-events:none;z-index:0}
+  #hud,#playRow,#controlsHint{position:relative;z-index:1}
+  #playRow{display:flex;gap:18px;align-items:stretch;justify-content:center;
+           max-width:100vw;padding:0 10px}
+  #stage{flex:0 1 auto;min-width:0}
+  #sideBoard{
+    flex:0 0 auto;min-width:172px;padding:14px 16px;border-radius:12px;
+    background:rgba(255,255,255,.55);border:1px solid rgba(11,27,58,.12);
+    color:var(--hud-fg);display:flex;flex-direction:column;gap:6px;
+    transition:background .8s linear,color .8s linear,border-color .8s linear;
+  }
+  body.darkui #sideBoard{background:rgba(10,4,26,.45);border-color:rgba(124,247,255,.18)}
+  #sideBoard h2{
+    font-size:11px;letter-spacing:.30em;font-weight:700;text-transform:uppercase;
+    opacity:.6;margin-bottom:4px;text-align:center;
+  }
+  #sideBoard .row{
+    display:flex;justify-content:space-between;gap:10px;
+    font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.05em;opacity:.85;
+  }
+  #sideBoard .row .rk{opacity:.5;width:2ch;text-align:right}
+  #sideBoard .row .nm{font-weight:800;letter-spacing:.18em}
+  #sideBoard .row.new{color:#7CF7FF;text-shadow:0 0 10px rgba(124,247,255,.8);opacity:1}
+  body:not(.darkui) #sideBoard .row.new{color:#005AFF;text-shadow:none}
+  #clearBoard{
+    margin-top:8px;padding:4px 10px;align-self:center;
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+    color:var(--hud-fg);opacity:.4;background:none;
+    border:1px solid currentColor;border-radius:999px;cursor:pointer;
+    transition:all .15s;
+  }
+  #clearBoard:hover{opacity:.8}
+  #clearBoard.confirm{opacity:1;color:#FF4D5E;border-color:#FF4D5E;box-shadow:0 0 10px rgba(255,77,94,.35)}
+  #hud{
+    width:min(96vw,1100px);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 18px;margin-bottom:10px;
+    color:var(--hud-fg);
+    font-weight:600;letter-spacing:.06em;
+    transition:color .8s linear;
+  }
+  #hud .box{display:flex;align-items:baseline;gap:10px}
+  #hud .lbl{font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.18em}
+  #hud .val{font-size:22px;font-variant-numeric:tabular-nums}
+  #seq{display:flex;gap:6px;align-items:center}
+  #seq span{
+    display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;
+    border-radius:6px;font-size:14px;font-weight:800;
+    border:2px solid transparent;opacity:.28;transition:all .25s;
+  }
+  #seq span.next{opacity:1;border-color:var(--accent);transform:scale(1.15);
+    box-shadow:0 0 12px color-mix(in srgb,var(--accent) 60%, transparent)}
+  #seq span.done{opacity:.75}
+  #seq span{display:flex;align-items:center;justify-content:center}
+  #seq span.next{color:var(--accent)}
+  #seq svg{width:15px;height:15px;display:block}
+  #lives{letter-spacing:4px;font-size:18px}
+  #stage{position:relative;line-height:0;margin-top:14px}
+  #hezBar{
+    position:absolute;top:-12px;left:2px;right:2px;height:7px;
+    border-radius:99px;background:rgba(128,128,160,.25);overflow:hidden;display:none;
+  }
+  #hezFill{height:100%;width:100%;border-radius:99px;background:#3DFA7E;transition:background .3s}
+  canvas#game{
+    border-radius:12px;
+    max-width:100%;max-height:68vh;
+    image-rendering:auto;
+    transition:box-shadow .12s linear;
+  }
+  #scanlines{
+    position:absolute;inset:0;border-radius:12px;pointer-events:none;opacity:0;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  .overlay{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:10px;border-radius:12px;
+    padding:16px;overflow:auto;
+    background:rgba(6,2,18,.85);backdrop-filter:blur(4px);
+    color:#EAF0FF;text-align:center;z-index:5;
+  }
+  .overlay.show{display:flex}
+  .overlay h1{font-size:14px;letter-spacing:.32em;font-weight:700;opacity:.7;text-transform:uppercase}
+  .overlay .big{font-size:40px;font-weight:800;letter-spacing:.05em}
+  .overlay .score{font-size:24px;font-variant-numeric:tabular-nums}
+  .overlay .hint{font-size:12px;opacity:.7;letter-spacing:.1em;line-height:1.7}
+  .overlay .hint b{color:#7CF7FF}
+  #board{
+    display:grid;grid-template-rows:repeat(5,auto);grid-auto-flow:column;gap:3px 34px;
+    font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.06em;
+  }
+  #board .row{display:flex;justify-content:space-between;gap:14px;min-width:118px;opacity:.85}
+  #board .row .rk{opacity:.5;width:2ch;text-align:right}
+  #board .row .nm{font-weight:800;letter-spacing:.2em}
+  #board .row.new{color:#7CF7FF;text-shadow:0 0 10px rgba(124,247,255,.8);opacity:1}
+  #entryBoxes{display:flex;gap:12px;margin:4px 0}
+  #entryBoxes .slot{
+    width:50px;height:62px;border:2px solid rgba(255,255,255,.25);border-radius:10px;
+    display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;
+    transition:all .12s;
+  }
+  #entryBoxes .slot.on{border-color:#7CF7FF;box-shadow:0 0 16px rgba(124,247,255,.55);transform:scale(1.08)}
+  #diffSel{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  #diffSel .pill{
+    padding:5px 13px;border:2px solid rgba(255,255,255,.2);border-radius:999px;
+    font-size:11px;letter-spacing:.14em;opacity:.55;text-transform:uppercase;font-weight:700;
+    transition:all .15s;
+  }
+  #diffSel .pill.on{opacity:1;border-color:#7CF7FF;color:#7CF7FF;box-shadow:0 0 12px rgba(124,247,255,.45)}
+  #diffDesc{max-width:400px;min-height:3.4em;font-size:11px;opacity:.75}
+  .menuBtns{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;justify-content:center}
+  .menuBtns button{
+    padding:7px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.28);
+    background:rgba(255,255,255,.06);color:#EAF0FF;cursor:pointer;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+    transition:all .15s;
+  }
+  .menuBtns button:hover{background:rgba(124,247,255,.16);border-color:#7CF7FF}
+  .menuBtns button.primary{background:#005AFF;border-color:#005AFF}
+  .menuBtns button.danger:hover{background:rgba(255,77,94,.2);border-color:#FF4D5E;color:#FF4D5E}
+  .menuBtns button[disabled]{opacity:.3;cursor:not-allowed}
+  #srcTag{
+    font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+    padding:3px 10px;border-radius:999px;border:1px solid currentColor;opacity:.8;
+  }
+  #srcTag.live{color:#3DFA7E}
+  #srcTag.offline{color:#FFC93F}
+  #explain{
+    max-width:640px;text-align:left;background:rgba(6,2,18,.6);
+    border:1px solid rgba(124,247,255,.25);border-radius:12px;padding:18px 22px;
+    max-height:52vh;overflow:auto;
+  }
+  #explain h3{font-size:12px;letter-spacing:.22em;text-transform:uppercase;opacity:.65;margin-bottom:10px}
+  #explain table{width:100%;border-collapse:collapse;font-size:12px}
+  #explain td{padding:5px 6px;vertical-align:top;border-bottom:1px solid rgba(255,255,255,.07)}
+  #explain td.k{white-space:nowrap;opacity:.65;width:34%}
+  #explain td.v b{color:#7CF7FF}
+  #explain td.v i{font-style:normal;opacity:.5}
+  #explain .foot{margin-top:12px;font-size:11px;opacity:.6;line-height:1.6}
+  #titleCanvas{margin-bottom:6px}
+  .pulseText{animation:pt 1.2s ease-in-out infinite}
+  @keyframes pt{0%,100%{opacity:.65}50%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){ .pulseText{animation:none} }
+  /* --- laptops and small windows: the game must stay square and centered --- */
+  @media (max-height: 800px){
+    canvas#game{max-height:62vh}
+    #hud{padding:6px 14px;margin-bottom:6px}
+    #hud .val{font-size:18px}
+  }
+  @media (max-height: 640px){
+    canvas#game{max-height:56vh}
+    #controlsHint{display:none}
+    .overlay .big{font-size:30px}
+    #explain{max-height:44vh}
+  }
+  /* --- narrow: leaderboard drops below the field as a compact strip --- */
+  @media (max-width: 1080px){
+    #playRow{flex-direction:column;align-items:center;gap:10px}
+    #sideBoard{
+      min-width:0;width:100%;max-width:640px;
+      flex-direction:row;flex-wrap:wrap;justify-content:center;gap:4px 16px;
+      padding:10px 14px;
+    }
+    #sideBoard h2{width:100%;margin-bottom:2px}
+    #sideBoard .row{min-width:104px;font-size:12px}
+    #sideBoard #clearBoard{margin-top:4px}
+  }
+  @media (max-width: 720px){
+    #hud{flex-wrap:wrap;gap:6px 14px;justify-content:center}
+    #seq{order:3;width:100%;justify-content:center}
+    #sideBoard .row:nth-child(n+7){display:none}   /* top 5 only on small screens */
+  }
+  #controlsHint{margin-top:8px;font-size:12px;opacity:.55;letter-spacing:.08em;color:var(--hud-fg);transition:color .8s linear}
+  body.darkui #hud, body.darkui #controlsHint{ text-shadow:0 1px 8px rgba(0,0,0,.75) }
+  body.darkui #controlsHint{ opacity:.75 }
+  body.darkui #seq span{ text-shadow:0 1px 6px rgba(0,0,0,.8) }
+</style>
+</head>
+<body>
+  <div id="roomGlow"></div>
+  <div id="hud">
+    <div class="box"><span class="lbl">Score</span><span class="val" id="scoreV">0</span></div>
+    <div class="box"><span class="lbl">Level</span><span class="val" id="levelV">1</span></div>
+    <div id="seq"></div>
+    <div class="box"><span class="lbl">Letters</span><span class="val" id="lettersV">0/15</span></div>
+    <div class="box"><span class="lbl">Snakes</span><span class="val" id="lives">●●●</span></div>
+  </div>
+
+  <div id="playRow">
+    <div id="stage">
+      <div id="hezBar"><div id="hezFill"></div></div>
+      <canvas id="game"></canvas>
+      <div id="scanlines"></div>
+      <div class="overlay" id="overlay"></div>
+    </div>
+    <aside id="sideBoard"></aside>
+  </div>
+  <div id="controlsHint">Arrows / WASD move &nbsp;·&nbsp; Enter start &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M mute &nbsp;·&nbsp; Esc title</div>
+
+<script>
+"use strict";
+/* ============================================================
+   NOKIA SNAKE — booth engagement build
+   Levels 1–20 · progressive synthwave · 3-button USB pad + d-pad
+   ============================================================ */
+
+const SEQ = ["N","O","K","I","A"];
+const LETTERS_PER_LEVEL = 5;
+const MAX_LEVEL = 20;
+const CELL = 30;                 // logical px per grid cell
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+const cv  = document.getElementById("game");
+const ctx = cv.getContext("2d");
+const stage = document.getElementById("stage");
+const overlay = document.getElementById("overlay");
+const scanEl = document.getElementById("scanlines");
+
+/* ---------- color helpers & evolving palette ---------- */
+function hex2rgb(h){h=h.replace("#","");return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function mix(a,b,t){
+  const A=hex2rgb(a),B=hex2rgb(b);
+  const c=A.map((v,i)=>Math.round(v+(B[i]-v)*t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function mixA(a,b,t,alpha){
+  const A=hex2rgb(a),B=hex2rgb(b);
+  const c=A.map((v,i)=>Math.round(v+(B[i]-v)*t));
+  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+}
+
+function mix3(a,m,b,t){ return t<0.55 ? mix(a,m,t/0.55) : mix(m,b,(t-0.55)/0.45); }
+
+/* Level 1 = clean Nokia brand (white field, Nokia blue).
+   Level 20 = full synthwave (near-black violet, neon cyan/magenta).
+   t moves in 19 discrete, subtle steps. */
+function palette(level){
+  const t=(level-1)/(MAX_LEVEL-1);
+  return {
+    t,
+    bg      : mix3("#F4F6FB","#463A6E","#0A0116",t),
+    gridCol : mixA("#0B1B3A","#8A2BE2",t, 0.06+0.30*t),
+    snake   : "#005AFF",
+    snakeHd : "#4D8BFF",
+    letter  : mix ("#0B1B3A","#FF2BD6",t),
+    wall    : mix ("#8E9BB5","#9B30FF",t),
+    wallEdge: mix ("#5B6B8C","#FF2BD6",t),
+    voidCol : mix ("#0B1B3A","#03000A",t),
+    hudFg   : t<0.32 ? "#0B1B3A" : "#F2F6FF",
+    accent  : mix ("#005AFF","#FF2BD6",t),
+    popup   : t<0.32 ? "#08307A" : "#7CF7FF",
+    npc     : ["#FF6B35","#FFC93F","#3DFA7E"].map(c=>mix(c, c, 0)), // stay warm/contrast
+    glow    : t                                   // 0 → 1 neon intensity
+  };
+}
+
+/* ---------- NOKIA letterforms ----------
+   Exact geometry extracted from the official brand SVG,
+   normalized to a unit box and rendered as filled shapes
+   (even-odd fill carves the O's counter). */
+const GLYPHS={"I":[[[-0.0589,-0.3747],[-0.0589,0.3766],[-0.0556,0.3766],[-0.0466,0.3766],[-0.0334,0.3766],[-0.0174,0.3766],[0.0,0.3766],[0.0174,0.3766],[0.0334,0.3766],[0.0466,0.3766],[0.0556,0.3766],[0.0589,0.3766],[0.0589,-0.3747],[-0.0589,-0.3747]]],"O":[[[0.0,-0.3877],[-0.0671,-0.383],[-0.1303,-0.3692],[-0.189,-0.347],[-0.2422,-0.3168],[-0.2894,-0.2793],[-0.3296,-0.2348],[-0.3622,-0.1841],[-0.3865,-0.1276],[-0.4016,-0.0658],[-0.4068,0.0006],[-0.4016,0.0671],[-0.3864,0.1288],[-0.3621,0.1853],[-0.3294,0.2361],[-0.2891,0.2805],[-0.242,0.3181],[-0.1887,0.3483],[-0.1301,0.3705],[-0.067,0.3842],[0.0,0.3889],[0.0671,0.3845],[0.1304,0.3714],[0.1891,0.3501],[0.2424,0.3209],[0.2896,0.2842],[0.3299,0.2403],[0.3625,0.1897],[0.3867,0.1326],[0.4017,0.0694],[0.4068,0.0006],[0.4016,-0.063],[0.3864,-0.1231],[0.3621,-0.1789],[0.3294,-0.2298],[0.2891,-0.2749],[0.242,-0.3135],[0.1887,-0.3448],[0.1301,-0.3681],[0.067,-0.3827]],[[0.2897,0.0006],[0.2859,0.0497],[0.2749,0.095],[0.2574,0.1362],[0.2339,0.173],[0.2049,0.205],[0.1712,0.2319],[0.1332,0.2535],[0.0917,0.2693],[0.0471,0.279],[0.0,0.2823],[-0.0471,0.279],[-0.0917,0.2693],[-0.1332,0.2535],[-0.1712,0.2319],[-0.2049,0.205],[-0.2339,0.173],[-0.2574,0.1362],[-0.2749,0.095],[-0.2859,0.0497],[-0.2897,0.0006],[-0.2859,-0.0485],[-0.2749,-0.0938],[-0.2574,-0.135],[-0.2339,-0.1717],[-0.2049,-0.2038],[-0.1712,-0.2307],[-0.1332,-0.2522],[-0.0917,-0.268],[-0.0471,-0.2777],[0.0,-0.281],[0.0471,-0.2777],[0.0917,-0.2677],[0.1332,-0.2517],[0.1712,-0.2298],[0.2049,-0.2026],[0.2339,-0.1704],[0.2574,-0.1336],[0.2749,-0.0926],[0.2859,-0.0477]]],"N":[[[-0.372,-0.3994],[-0.372,0.376],[-0.2518,0.376],[-0.2518,-0.1368],[-0.2343,-0.1218],[-0.1869,-0.081],[-0.117,-0.0209],[-0.0322,0.0521],[0.0601,0.1316],[0.1524,0.211],[0.2372,0.284],[0.3071,0.3442],[0.3545,0.385],[0.372,0.4],[0.372,0.2391],[-0.372,-0.4]]],"K":[[[-0.3057,0.0006],[0.1307,0.376],[0.3057,0.376],[0.2934,0.3655],[0.2602,0.3369],[0.2112,0.2949],[0.1517,0.2438],[0.0869,0.1883],[0.0221,0.1327],[-0.0374,0.0817],[-0.0864,0.0397],[-0.1196,0.0111],[-0.1319,0.0006],[0.3057,-0.3747],[0.1307,-0.3747]]],"A":[[[0.4388,0.376],[0.3094,0.376],[0.2145,0.2096],[-0.2145,0.2096],[-0.3094,0.376],[-0.4388,0.376],[-0.2823,0.0986],[0.1522,0.0986],[-0.0641,-0.2866],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.0,-0.3994],[0.4382,0.376]]]};
+const GLYPH_D={};
+for(const ch in GLYPHS){
+  GLYPH_D[ch]=GLYPHS[ch].map(pl=>
+    "M"+pl.map(p=>p[0].toFixed(3)+" "+p[1].toFixed(3)).join("L")+"Z").join("");
+}
+function glyphSVG(ch){
+  return `<svg viewBox="-0.45 -0.45 0.9 0.9"><path d="${GLYPH_D[ch]}" fill="currentColor" fill-rule="evenodd"/></svg>`;
+}
+function drawGlyph(c, ch, cx, cy, size, color, glowAmt){
+  const subs=GLYPHS[ch]; if(!subs) return;
+  c.save();
+  c.translate(cx,cy); c.scale(size,size);
+  if(glowAmt>0.02){ c.shadowColor=color; c.shadowBlur=fxBlur(7*glowAmt); }
+  c.fillStyle=color;
+  c.beginPath();
+  for(const pl of subs){
+    c.moveTo(pl[0][0],pl[0][1]);
+    for(let i=1;i<pl.length;i++) c.lineTo(pl[i][0],pl[i][1]);
+    c.closePath();
+  }
+  c.fill("evenodd");
+  c.restore();
+}
+
+/* ---------- "SNAKE" title: each letter traced as a game snake ---------- */
+const SNAKE_WORD_PATHS = {
+  S:[[0.26,-0.36],[-0.26,-0.36],[-0.26,0],[0.26,0],[0.26,0.36],[-0.26,0.36]],
+  N:[[-0.26,0.36],[-0.26,-0.36],[0.26,0.36],[0.26,-0.36]],
+  A:[[-0.26,0.36],[0,-0.36],[0.26,0.36]],
+  K:[[0.26,-0.36],[-0.20,0],[0.26,0.36]],
+  E:[[0.26,-0.36],[-0.26,-0.36],[-0.26,0],[0.08,0],[-0.26,0],[-0.26,0.36],[0.26,0.36]]
+};
+function drawSnakeTitle(c, word, colBody, colHead){
+  const x=c.getContext("2d");
+  x.clearRect(0,0,c.width,c.height);
+  const s=c.height*0.92, w=s*0.80, x0=c.width/2-(word.length-1)*w/2;
+  word.split("").forEach((ch,i)=>{
+    const pts=(SNAKE_WORD_PATHS[ch]||[]).map(p=>[x0+i*w+p[0]*s, c.height/2+p[1]*s]);
+    if(pts.length<2) return;
+    // resample polyline into evenly spaced body segments (tail → head)
+    const seg=[], step=s*0.13; let carry=0;
+    for(let j=0;j<pts.length-1;j++){
+      const [ax,ay]=pts[j],[bx,by]=pts[j+1];
+      const len=Math.hypot(bx-ax,by-ay); if(!len) continue;
+      for(let d=carry; d<len; d+=step) seg.push([ax+(bx-ax)*d/len, ay+(by-ay)*d/len]);
+      carry=((carry-len)%step+step)%step;
+    }
+    seg.push(pts[pts.length-1]);
+    seg.forEach(([px,py],j)=>{
+      const t=j/(seg.length-1);
+      const r=(0.30+0.32*t)*step;                    // tapered tail
+      x.fillStyle=colBody; x.globalAlpha=0.5+0.5*t;
+      x.beginPath();
+      if(x.roundRect) x.roundRect(px-r,py-r,r*2,r*2,r*0.6); else x.rect(px-r,py-r,r*2,r*2);
+      x.fill();
+    });
+    const [hx,hy]=seg[seg.length-1], [qx,qy]=seg[seg.length-2]||seg[0];
+    const dx=hx-qx, dy=hy-qy, m=Math.hypot(dx,dy)||1, ux=dx/m, uy=dy/m;
+    const hr=step*0.74;
+    x.globalAlpha=1; x.fillStyle=colHead;
+    x.beginPath();
+    if(x.roundRect) x.roundRect(hx-hr,hy-hr,hr*2,hr*2,hr*0.7); else x.rect(hx-hr,hy-hr,hr*2,hr*2);
+    x.fill();
+    x.fillStyle="#0A0116";
+    x.beginPath();
+    x.arc(hx+ux*hr*0.35-uy*hr*0.42, hy+uy*hr*0.35+ux*hr*0.42, hr*0.17,0,7);
+    x.arc(hx+ux*hr*0.35+uy*hr*0.42, hy+uy*hr*0.35-ux*hr*0.42, hr*0.17,0,7);
+    x.fill();
+    x.globalAlpha=1;
+  });
+}
+
+/* ============================================================
+   AUDIO — layered synthwave that assembles level by level
+   L1 silence · L2 kick · L4 bass · L6 hats · L8 arpeggio
+   L11 pads · L14 16th arps · L17 snare + lead
+   ============================================================ */
+const TRACKS=[
+  { name:"Neon Grid",      roots:[33,29,36,31], bpmOff:0,  arpWave:"sawtooth",
+    leadPhrase:[0,3,7,10,7,3],   hue:0,    period:4000 },
+  { name:"Midnight Drive", roots:[31,27,29,26], bpmOff:-6, arpWave:"square",
+    leadPhrase:[0,2,3,7,3,2],    hue:140,  period:4600 },
+  { name:"Chrome Sunset",  roots:[36,33,29,31], bpmOff:6,  arpWave:"sawtooth",
+    leadPhrase:[12,10,7,3,7,10], hue:-70,  period:3400 }
+];
+function hueShift(rgbStr,deg){
+  const m=rgbStr.match(/\d+/g); if(!m) return rgbStr;
+  let [r,g,b]=m.map(Number); r/=255;g/=255;b/=255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b); let hh=0,s=0,l=(mx+mn)/2;
+  if(mx!==mn){ const d=mx-mn;
+    s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+    hh= mx===r ? (g-b)/d+(g<b?6:0) : mx===g ? (b-r)/d+2 : (r-g)/d+4; hh/=6; }
+  hh=(hh+deg/360+1)%1;
+  const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+  const f=t=>{ t=(t+1)%1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+  return `rgb(${Math.round(f(hh+1/3)*255)},${Math.round(f(hh)*255)},${Math.round(f(hh-1/3)*255)})`;
+}
+const Music = {
+  ac:null, master:null, comp:null, muted:false, level:1, trackIdx:0,
+  step:0, nextT:0, timer:null, noiseBuf:null,
+  dly:null, echoSend:null,
+  onBeat:null,
+
+  ensure(){
+    if(this.ac || this.unavailable) return;
+    const AC = window.AudioContext||window.webkitAudioContext;
+    if(!AC){ this.unavailable=true; return; }
+    this.ac = new AC();
+    // master -> glue compressor -> out (gives the pumping retrowave feel)
+    this.master = this.ac.createGain(); this.master.gain.value = 0.5;
+    this.comp = this.ac.createDynamicsCompressor();
+    this.comp.threshold.value=-20; this.comp.ratio.value=7;
+    this.comp.attack.value=0.003;  this.comp.release.value=0.22;
+    this.master.connect(this.comp).connect(this.ac.destination);
+    // dotted-eighth echo bus — the signature retrowave delay
+    this.dly=this.ac.createDelay(1.5);
+    const fb=this.ac.createGain(); fb.gain.value=0.38;
+    const df=this.ac.createBiquadFilter(); df.type="lowpass"; df.frequency.value=3400;
+    this.dly.connect(df).connect(fb).connect(this.dly);
+    fb.connect(this.master);
+    this.echoSend=this.ac.createGain(); this.echoSend.gain.value=0.55;
+    this.echoSend.connect(this.dly);
+    const len = this.ac.sampleRate*0.5;
+    this.noiseBuf = this.ac.createBuffer(1,len,this.ac.sampleRate);
+    const d=this.noiseBuf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+  },
+  start(){
+    this.ensure();
+    if(!this.ac) return;
+    if(this.ac.state==="suspended") this.ac.resume();
+    if(this.timer) return;
+    this.step=0; this.nextT=this.ac.currentTime+0.06;
+    this.timer=setInterval(()=>this.pump(),25);
+  },
+  stop(){ if(this.timer){clearInterval(this.timer);this.timer=null;} },
+  setMuted(m){ this.muted=m; if(this.master) this.master.gain.value = m?0:0.5; },
+  bpm(){ return 96 + this.level*2 + (TRACKS[this.trackIdx]||TRACKS[0]).bpmOff; },
+  pump(){
+    const spb = 60/this.bpm()/4;             // 16th note
+    if(this.dly) this.dly.delayTime.value = (60/this.bpm())*0.75;   // dotted 8th
+    while(this.nextT < this.ac.currentTime + 0.12){
+      this.schedule(this.step, this.nextT);
+      this.nextT += spb;
+      this.step = (this.step+1) % 64;        // 4 bars of 16
+    }
+  },
+  /* Layer schedule (denser, synth-forward):
+     L1 kick · L3 detuned saw bass · L5 echoing saw arp (8ths)
+     L6 offbeat hats · L9 supersaw pad · L12 16th arps + 16th hats
+     L14 snare · L16 saw lead + octave-jump arps                    */
+  schedule(s, t){
+    const L=this.level, bar=Math.floor(s/16), sub=s%16;
+    const tr=TRACKS[this.trackIdx]||TRACKS[0];
+    const root=tr.roots[bar];
+    const chord=[root+24, root+27, root+31, root+36];
+
+    if(sub%4===0 && this.onBeat) this.onBeat();
+    if(this.muted) return;
+
+    if(L>=1 && sub%4===0) this.kick(t);
+    if(L>=3 && sub%2===0){
+      const n = (sub===6||sub===14)? root+12 : root;
+      this.bass(t, n);
+    }
+    if(L>=5){
+      const div = (L>=12)?1:2;
+      if(sub%div===0){
+        const idx=Math.floor(s/div)%chord.length;
+        const oct=(L>=16 && bar%2===1)?12:0;
+        this.arp(t, chord[idx]+oct);
+      }
+    }
+    if(L>=6){
+      if(L>=12){ if(sub%2===1) this.hat(t,0.05); }
+      else if(sub%4===2) this.hat(t,0.08);
+    }
+    if(L>=9 && sub===0) this.pad(t, chord);
+    if(L>=14 && (sub===4||sub===12)) this.snare(t);
+    if(L>=16 && sub===0 && bar%2===0) this.lead(t, root+36);
+  },
+  mtof(m){ return 440*Math.pow(2,(m-69)/12); },
+  env(g,t,a,peak,dec){
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(peak,t+a);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+a+dec);
+  },
+  kick(t){
+    const o=this.ac.createOscillator(), g=this.ac.createGain();
+    o.type="sine";
+    o.frequency.setValueAtTime(150,t);
+    o.frequency.exponentialRampToValueAtTime(42,t+0.12);
+    this.env(g,t,0.002,0.9,0.22);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t+0.3);
+  },
+  hat(t,vol){
+    const s=this.ac.createBufferSource(); s.buffer=this.noiseBuf;
+    const f=this.ac.createBiquadFilter(); f.type="highpass"; f.frequency.value=7000;
+    const g=this.ac.createGain(); this.env(g,t,0.001,vol,0.05);
+    s.connect(f).connect(g).connect(this.master); s.start(t); s.stop(t+0.08);
+  },
+  snare(t){
+    const s=this.ac.createBufferSource(); s.buffer=this.noiseBuf;
+    const f=this.ac.createBiquadFilter(); f.type="bandpass"; f.frequency.value=1900; f.Q.value=0.8;
+    const g=this.ac.createGain(); this.env(g,t,0.001,0.32,0.16);
+    s.connect(f).connect(g).connect(this.master); s.start(t); s.stop(t+0.2);
+  },
+  bass(t,m){
+    // two detuned saws + a sub sine — fat analog-style bass
+    const f=this.ac.createBiquadFilter(); f.type="lowpass";
+    f.frequency.setValueAtTime(280+this.level*45,t);
+    f.frequency.exponentialRampToValueAtTime(110,t+0.17);
+    const g=this.ac.createGain(); this.env(g,t,0.004,0.20,0.16);
+    f.connect(g).connect(this.master);
+    [-8,8].forEach(dt=>{
+      const o=this.ac.createOscillator(); o.type="sawtooth";
+      o.frequency.value=this.mtof(m); o.detune.value=dt;
+      o.connect(f); o.start(t); o.stop(t+0.22);
+    });
+    const sub=this.ac.createOscillator(); sub.type="sine";
+    sub.frequency.value=this.mtof(m-12);
+    const sg=this.ac.createGain(); this.env(sg,t,0.004,0.16,0.16);
+    sub.connect(sg).connect(this.master); sub.start(t); sub.stop(t+0.22);
+  },
+  arp(t,m){
+    // bright pluck feeding the dotted-eighth echo (waveform is per-track)
+    const o=this.ac.createOscillator();
+    o.type=(TRACKS[this.trackIdx]||TRACKS[0]).arpWave;
+    o.frequency.value=this.mtof(m);
+    const f=this.ac.createBiquadFilter(); f.type="lowpass";
+    f.frequency.setValueAtTime(3600,t);
+    f.frequency.exponentialRampToValueAtTime(900,t+0.11);
+    const g=this.ac.createGain(); this.env(g,t,0.002,0.085,0.11);
+    o.connect(f).connect(g);
+    g.connect(this.master); if(this.echoSend) g.connect(this.echoSend);
+    o.start(t); o.stop(t+0.15);
+  },
+  pad(t,chord){
+    // supersaw pad: three detuned saws per chord tone
+    const spb=60/this.bpm()/4, dur=spb*16;
+    chord.slice(0,3).forEach((m)=>{
+      const f=this.ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1250;
+      const g=this.ac.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(0.028,t+dur*0.25);
+      g.gain.linearRampToValueAtTime(0.0001,t+dur);
+      f.connect(g).connect(this.master);
+      [-12,0,12].forEach(dt=>{
+        const o=this.ac.createOscillator(); o.type="sawtooth";
+        o.frequency.value=this.mtof(m-12); o.detune.value=dt+5;
+        o.connect(f); o.start(t); o.stop(t+dur+0.05);
+      });
+    });
+  },
+  lead(t,m){
+    // singing saw lead with vibrato, echoed (phrase is per-track)
+    const spb=60/this.bpm()/4;
+    const phrase=(TRACKS[this.trackIdx]||TRACKS[0]).leadPhrase;
+    phrase.forEach((iv,i)=>{
+      const tt=t+i*spb*2;
+      const o=this.ac.createOscillator(); o.type="sawtooth"; o.frequency.value=this.mtof(m+iv);
+      const vib=this.ac.createOscillator(); vib.frequency.value=5.5;
+      const vg=this.ac.createGain(); vg.gain.value=6;
+      vib.connect(vg).connect(o.detune);
+      const f=this.ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=2600;
+      const g=this.ac.createGain(); this.env(g,tt,0.015,0.10,spb*1.8);
+      o.connect(f).connect(g);
+      g.connect(this.master); if(this.echoSend) g.connect(this.echoSend);
+      o.start(tt); o.stop(tt+spb*2); vib.start(tt); vib.stop(tt+spb*2);
+    });
+  },
+  // title-screen attract: slow, melancholy harmony — one long chord per cycle
+  menuChord(i){
+    if(!this.ac||this.muted) return;
+    if(this.ac.state==="suspended"){ this.ac.resume(); return; }
+    const t=this.ac.currentTime+0.03;
+    const tr=TRACKS[this.trackIdx]||TRACKS[0];
+    const root=tr.roots[i%4];
+    // deep sine root underneath for weight
+    const sub=this.ac.createOscillator(); sub.type="sine";
+    sub.frequency.value=this.mtof(root);
+    const sg=this.ac.createGain();
+    sg.gain.setValueAtTime(0.0001,t);
+    sg.gain.linearRampToValueAtTime(0.055,t+1.4);
+    sg.gain.linearRampToValueAtTime(0.0001,t+4.0);
+    sub.connect(sg).connect(this.master); sub.start(t); sub.stop(t+4.2);
+    // dark supersaw chord, swelling and falling with the visual breath
+    [root+24, root+27, root+31].forEach(m=>{
+      const f=this.ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=950;
+      const g=this.ac.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(0.024,t+1.5);
+      g.gain.linearRampToValueAtTime(0.0001,t+4.1);
+      f.connect(g).connect(this.master);
+      [-11,0,11].forEach(dt=>{
+        const o=this.ac.createOscillator(); o.type="sawtooth";
+        o.frequency.value=this.mtof(m-12); o.detune.value=dt+4;
+        o.connect(f); o.start(t); o.stop(t+4.3);
+      });
+    });
+    // distant bell late in the chord, drifting through the echo
+    const b=this.ac.createOscillator(); b.type="sine";
+    b.frequency.value=this.mtof(root+36);
+    const bg=this.ac.createGain();
+    this.env(bg,t+2.0,0.03,0.030,1.4);
+    b.connect(bg); bg.connect(this.master);
+    if(this.echoSend) bg.connect(this.echoSend);
+    b.start(t+2.0); b.stop(t+3.8);
+  },
+  // small one-shot SFX (share the context)
+  sfx(kind){
+    if(!this.ac||this.muted) return;
+    const t=this.ac.currentTime;
+    if(kind==="eat"){
+      const o=this.ac.createOscillator(),g=this.ac.createGain();
+      o.type="triangle"; o.frequency.setValueAtTime(620,t);
+      o.frequency.exponentialRampToValueAtTime(980,t+0.07);
+      this.env(g,t,0.002,0.25,0.10);
+      o.connect(g).connect(this.master); o.start(t); o.stop(t+0.14);
+    }else if(kind==="bonus"){
+      [880,1174,1568].forEach((f,i)=>{
+        const o=this.ac.createOscillator(),g=this.ac.createGain();
+        o.type="square"; o.frequency.value=f;
+        this.env(g,t+i*0.05,0.002,0.12,0.12);
+        o.connect(g).connect(this.master); o.start(t+i*0.05); o.stop(t+i*0.05+0.16);
+      });
+    }else if(kind==="boom"){
+      // pixel explosion: noise burst sweeping down + sub thump
+      const s=this.ac.createBufferSource(); s.buffer=this.noiseBuf;
+      const f=this.ac.createBiquadFilter(); f.type="lowpass";
+      f.frequency.setValueAtTime(2600,t);
+      f.frequency.exponentialRampToValueAtTime(160,t+0.42);
+      const g=this.ac.createGain(); this.env(g,t,0.003,0.5,0.45);
+      s.connect(f).connect(g).connect(this.master); s.start(t); s.stop(t+0.5);
+      const o=this.ac.createOscillator(); o.type="sine";
+      o.frequency.setValueAtTime(95,t);
+      o.frequency.exponentialRampToValueAtTime(34,t+0.3);
+      const og=this.ac.createGain(); this.env(og,t,0.003,0.55,0.32);
+      o.connect(og).connect(this.master); o.start(t); o.stop(t+0.4);
+    }else if(kind==="boomRev"){
+      // the explosion in reverse: swelling noise rising into a cut
+      const s=this.ac.createBufferSource(); s.buffer=this.noiseBuf;
+      const f=this.ac.createBiquadFilter(); f.type="lowpass";
+      f.frequency.setValueAtTime(160,t);
+      f.frequency.exponentialRampToValueAtTime(2600,t+0.55);
+      const g=this.ac.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.5,t+0.55);
+      g.gain.linearRampToValueAtTime(0.0001,t+0.60);
+      s.connect(f).connect(g).connect(this.master); s.start(t); s.stop(t+0.62);
+      const o=this.ac.createOscillator(); o.type="sine";
+      o.frequency.setValueAtTime(34,t);
+      o.frequency.exponentialRampToValueAtTime(95,t+0.55);
+      const og=this.ac.createGain();
+      og.gain.setValueAtTime(0.0001,t);
+      og.gain.exponentialRampToValueAtTime(0.5,t+0.55);
+      og.gain.linearRampToValueAtTime(0.0001,t+0.60);
+      o.connect(og).connect(this.master); o.start(t); o.stop(t+0.62);
+    }else if(kind==="die"){
+      const o=this.ac.createOscillator(),g=this.ac.createGain();
+      o.type="sawtooth"; o.frequency.setValueAtTime(300,t);
+      o.frequency.exponentialRampToValueAtTime(60,t+0.4);
+      this.env(g,t,0.002,0.3,0.42);
+      o.connect(g).connect(this.master); o.start(t); o.stop(t+0.5);
+    }else if(kind==="kill"){
+      const o=this.ac.createOscillator(),g=this.ac.createGain();
+      o.type="square"; o.frequency.setValueAtTime(220,t);
+      o.frequency.exponentialRampToValueAtTime(880,t+0.12);
+      this.env(g,t,0.002,0.22,0.18);
+      o.connect(g).connect(this.master); o.start(t); o.stop(t+0.22);
+    }
+  }
+};
+
+
+/* ============================================================
+   EDA BRIDGE
+   Everything network-facing lives here. If EDA is unreachable,
+   every call degrades to the synthetic generator and the game
+   plays exactly like the standalone cabinet build.
+   ============================================================ */
+const EDA = {
+  base: "",                 // same-origin when served by the app's route
+  token: null,
+  online: false,
+  user: { name:"operator", canReset:false, canPlay:true },
+  fabric: null,             // { nodes:[{name,role}], links:[{a,b,up}], name }
+  lastError: null,
+
+  async api(path, opts){
+    const r = await fetch(this.base + path, Object.assign({
+      headers: Object.assign(
+        { "Content-Type":"application/json" },
+        this.token ? { "Authorization":"Bearer "+this.token } : {})
+    }, opts||{}));
+    if(!r.ok) throw new Error(path+" -> "+r.status);
+    return r.json();
+  },
+
+  /* ---- discovery: who am I, and is there a fabric to read? ---- */
+  async connect(){
+    try{
+      const who = await this.api("/core/user/v1/whoami");
+      this.user.name = who.username || who.name || "operator";
+      // RBAC: reset wipes shared state, so it is gated on a write permission
+      const perms = (who.permissions || who.groups || []);
+      this.user.canReset = Array.isArray(perms) &&
+        perms.some(p => /admin|snake-admin|write/i.test(String(p)));
+      this.online = true;
+    }catch(e){ this.lastError = e.message; this.online = false; return false; }
+    try{ this.fabric = await this.readFabric(); }
+    catch(e){ this.lastError = e.message; this.fabric = null; }
+    return this.online;
+  },
+
+  /* ---- topology via EQL ----
+     Verified against a live 25.8 lab. Field names are exactly what the
+     query endpoint returns; the payload is a BARE ARRAY, not {rows:[...]}.
+
+       .namespace.node                  -> name, ip-port, operating-system, status
+       .namespace.node.<os>.interface   -> .namespace.node.name, name, admin-state,
+                                           oper-state, oper-down-reason, mtu, ...
+
+     Interfaces live under a per-OS table (srl | sros), so the OS reported by
+     the node query decides which interface tables to read. */
+  /* The EDA API follows the Kubernetes Resource Model, so list responses are
+     normally enveloped ({apiVersion, kind, items:[...]}). The EQL query
+     endpoint's exact envelope is not pinned down in the docs, so rather than
+     hard-code one shape we accept any of them and record which one arrived in
+     `EDA.lastShape` — check that in the console to see what your cluster sent. */
+  lastShape:"(no query yet)",
+  rows(payload){
+    if(Array.isArray(payload)){ this.lastShape="bare array"; return payload; }
+    if(payload && typeof payload==="object"){
+      for(const key of ["items","rows","results","data","entries"]){
+        if(Array.isArray(payload[key])){
+          this.lastShape=`{${key}:[...]}` + (payload.kind?` kind=${payload.kind}`:"");
+          return payload[key];
+        }
+      }
+      // single object returned instead of a list
+      if(payload.kind || payload.metadata || payload.spec){
+        this.lastShape="single KRM object"; return [payload];
+      }
+    }
+    this.lastShape="unrecognised: "+JSON.stringify(payload).slice(0,120);
+    return [];
+  },
+  /* A row may be flat ({name:"leaf11"}) or KRM-shaped, with the interesting
+     fields under .spec/.status and the name under .metadata.name. Read through
+     all of them so either works. */
+  field(row, key){
+    if(!row || typeof row!=="object") return undefined;
+    if(row[key]!==undefined) return row[key];
+    for(const nest of ["spec","status"]){
+      if(row[nest] && row[nest][key]!==undefined) return row[nest][key];
+    }
+    if(key==="name" && row.metadata && row.metadata.name!==undefined) return row.metadata.name;
+    return undefined;
+  },
+  async query(eql){
+    const rows=this.rows(await this.api("/core/query/v1?eql="+encodeURIComponent(eql)));
+    if(!this._loggedShape){
+      this._loggedShape=true;
+      try{ console.info("[snake] EQL payload shape:", this.lastShape,
+                        "| first row:", JSON.stringify(rows[0]||null).slice(0,200)); }catch(e){}
+    }
+    return rows;
+  },
+  // A fabric link is a physical/lag port. Loopbacks, mgmt and system interfaces
+  // are not links and must not become walls.
+  isFabricPort(name){
+    return /^(ethernet-|lag|irb)/i.test(String(name||""));
+  },
+  async readFabric(){
+    const nodeRows = await this.query(
+      ".namespace.node fields [name, operating-system, status]");
+
+    const nodes = nodeRows.map(r=>{
+      const name = this.field(r,"name") || "";
+      const os   = String(this.field(r,"operating-system") || "").toLowerCase();
+      return {
+        name,
+        os,
+        status: this.field(r,"status") || "",
+        // No node 'type' field exists, so role comes from the naming
+        // convention only. Purely cosmetic - nothing in the game depends on it.
+        role: /spine/i.test(name) ? "spine" : /leaf/i.test(name) ? "leaf" : "node"
+      };
+    }).filter(n=>n.name);
+
+    if(!nodes.length) throw new Error("no nodes returned from .namespace.node");
+
+    // Which per-OS interface tables to read. Default to srl if the OS string
+    // is empty or unrecognised, since that is the common lab case.
+    const families = new Set();
+    for(const n of nodes){
+      if(n.os.includes("sros")) families.add("sros");
+      else if(n.os.includes("srl") || n.os.includes("linux")) families.add("srl");
+    }
+    if(!families.size) families.add("srl");
+
+    const links = [];
+    for(const fam of families){
+      let ifRows=[];
+      try{
+        ifRows = await this.query(
+          `.namespace.node.${fam}.interface fields `+
+          `[.namespace.node.name, name, admin-state, oper-state, oper-down-reason]`);
+      }catch(e){ continue; }        // family not present in this lab
+      for(const r of ifRows){
+        const port = this.field(r,"name");
+        if(!this.isFabricPort(port)) continue;
+        const oper  = String(this.field(r,"oper-state")  || "").toLowerCase();
+        const admin = String(this.field(r,"admin-state") || "").toLowerCase();
+        links.push({
+          node: this.field(r,".namespace.node.name") || this.field(r,"node") || "",
+          id: port,
+          up: oper==="up",
+          adminDown: admin==="disable" || admin==="down",
+          reason: this.field(r,"oper-down-reason") || ""
+        });
+      }
+    }
+    return { name:"fabric", nodes, links };
+  },
+
+  /* ---- leaderboard as SnakeScore custom resources ---- */
+  async listScores(){
+    // Preferred: the board the state intent already ranked and validated.
+    try{
+      const lb = await this.api("/apps/snake.eda.local/v1alpha1/namespaces/eda/snakeleaderboards/default");
+      const entries = (lb.status && lb.status.entries) || [];
+      if(entries.length) return entries.map(e=>({
+        name:e.initials, score:e.score, level:e.level, diff:e.difficulty, by:e.player }));
+      // an empty ranked board is still authoritative — don't fall through
+      if(lb.status) return [];
+    }catch(e){ /* leaderboard CR not present yet: fall back to raw scores */ }
+    const j = await this.api("/apps/snake.eda.local/v1alpha1/namespaces/eda/snakescores");
+    return (j.items||[]).map(it=>({
+      name: it.spec.initials, score: it.spec.score,
+      level: it.spec.level, diff: it.spec.difficulty,
+      by: it.spec.player
+    })).sort((a,b)=>b.score-a.score).slice(0,10);
+  },
+  async postScore(initials, score, level, diff){
+    const body = {
+      apiVersion:"snake.eda.local/v1alpha1", kind:"SnakeScore",
+      metadata:{ name:`score-${Date.now()}-${initials.toLowerCase()}`, namespace:"eda" },
+      spec:{ initials, score, level, difficulty:diff, player:this.user.name,
+             recordedAt:new Date().toISOString(),
+             fabricNodes:(this.fabric&&this.fabric.nodes)?this.fabric.nodes.length:0 }
+    };
+    return this.api("/apps/snake.eda.local/v1alpha1/namespaces/eda/snakescores",
+                    { method:"POST", body:JSON.stringify(body) });
+  },
+  async deleteAllScores(){
+    const j = await this.api("/apps/snake.eda.local/v1alpha1/namespaces/eda/snakescores");
+    for(const it of (j.items||[])){
+      await this.api("/apps/snake.eda.local/v1alpha1/namespaces/eda/snakescores/"+it.metadata.name,
+                     { method:"DELETE" });
+    }
+  }
+};
+
+/* ---------- effects level: admins run this on whatever laptop they have ---------- */
+function loadFx(){
+  try{ G.lowFx = !!(window.localStorage &&
+       window.localStorage.getItem("snakeLowFx")==="1"); }catch(e){ G.lowFx=false; }
+}
+function setFx(v){
+  G.lowFx=!!v;
+  try{ window.localStorage && window.localStorage.setItem("snakeLowFx", G.lowFx?"1":"0"); }catch(e){}
+  applyChrome();
+}
+// glow gate: every shadowBlur in the renderer goes through this
+function fxBlur(px){ return G.lowFx ? 0 : px; }
+
+/* ---- provenance: what came from the fabric vs. what the game invented ----
+   Rebuilt on every buildLevel so the explainer always tells the truth. */
+const Prov = {
+  arena:"synthetic", letters:"synthetic", walls:"synthetic",
+  nodeNames:[], downLinks:0, adminDown:0, fabricNodes:0, fabricLinks:0,
+  source(){ return EDA.online && EDA.fabric ? "fabric" : "synthetic"; }
+};
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const G = {
+  state:"menu",            // menu | play | paused | dying | retract | wipeout | popup | wipein | entry | gameover | win
+  level:1, score:0, lives:1,
+  cols:15, rows:11, tickMs:160,
+  snake:[], dir:{x:1,y:0}, dirQ:[], grow:0,
+  walls:new Set(), reach:new Set(),
+  letterIdx:0, letter:null, lettersGot:0,
+  npcs:[],
+  popups:[], pulse:0, pulseScope:0,
+  lastTick:0, lastCloseCall:0, inNeedle:false,
+  wipe:{keys:null,maxKey:0,p:0,t0:0,dur:1400},
+  retractT:0, dieT:0, flashT:0,
+  levelStartScore:0,
+  muted:false,
+  dev:false, konami:[],
+  diff:"normal", hez:0, turned:false, track:0, lowFx:false,
+  particles:[], reasm:null, reasmT0:0,
+  menuIdx:0, menuBeatT:0
+};
+const key=(x,y)=>x+","+y;
+const DIRS=[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+
+function levelConfig(n){
+  const d=G.diff;
+  const base={ cols: Math.min(15 + (n-1), 34),
+               rows: Math.min(11 + Math.floor((n-1)*0.7), 24) };
+  // one master speed curve: speed rises ~1.5% per level, +30% total by level 20.
+  // harder modes run at fixed ms offsets below it so Normal > HEZ > Hard holds everywhere.
+  const nT = Math.round(165 / (1 + 0.30*(n-1)/19));
+  if(d==="hard") return Object.assign(base,{
+    tickMs: nT - 9,
+    wallSegs: Math.min(Math.floor((n-1)*1.8), 20),
+    wallLenMax: 4 + Math.floor(n/4),
+    npcCount: n>=16?4 : n>=12?3 : n>=8?2 : n>=3?1 : 0
+  });
+  if(d==="hez") return Object.assign(base,{
+    tickMs: nT - 4,                                 // between Normal and Hard: the clock is the pressure
+    wallSegs: Math.min(Math.floor((n-1)*1.6), 18),
+    wallLenMax: 4 + Math.floor(n/4),
+    npcCount: n>=17?4 : n>=13?3 : n>=9?2 : n>=4?1 : 0
+  });
+  return Object.assign(base,{                       // normal
+    tickMs: nT,
+    wallSegs: n>=2 ? Math.min(Math.floor((n-1)*1.4), 16) : 0,
+    wallLenMax: 3 + Math.floor(n/4),
+    npcCount: n>=15?3 : n>=10?2 : n>=5?1 : 0
+  });
+}
+/* Human Error Zero: a draining time bank refilled only by the player's letters */
+const HEZ_START=18000, HEZ_PER_LETTER=5200, HEZ_MAX=24000;
+
+function resizeCanvas(){
+  cv.width  = G.cols*CELL*DPR;
+  cv.height = G.rows*CELL*DPR;
+  cv.style.aspectRatio = `${G.cols*CELL}/${G.rows*CELL}`;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+
+function floodReach(){
+  G.reach.clear();
+  const q=[G.snake[0]], seen=new Set([key(G.snake[0].x,G.snake[0].y)]);
+  while(q.length){
+    const c=q.pop();
+    G.reach.add(key(c.x,c.y));
+    for(const d of DIRS){
+      const nx=c.x+d.x, ny=c.y+d.y, k=key(nx,ny);
+      if(nx<0||ny<0||nx>=G.cols||ny>=G.rows) continue;
+      if(G.walls.has(k)||seen.has(k)) continue;
+      seen.add(k); q.push({x:nx,y:ny});
+    }
+  }
+}
+
+function genWalls(n){
+  G.walls.clear();
+  const cfg=levelConfig(n);
+  Prov.walls = (EDA.online && EDA.fabric && Prov.downLinks>0) ? "fabric+synthetic" : "synthetic";
+  const hx=Math.floor(G.cols/2), hy=Math.floor(G.rows/2);
+  let placed=0, guard=0;
+  while(placed<cfg.wallSegs && guard++<400){
+    const horiz=Math.random()<0.5;
+    const len=3+Math.floor(Math.random()*Math.max(1,cfg.wallLenMax-2));
+    const x0=1+Math.floor(Math.random()*(G.cols-2-(horiz?len:0)));
+    const y0=1+Math.floor(Math.random()*(G.rows-2-(horiz?0:len)));
+    const cells=[];
+    let ok=true;
+    for(let i=0;i<len;i++){
+      const x=horiz?x0+i:x0, y=horiz?y0:y0+i;
+      if(Math.abs(x-hx)<4 && Math.abs(y-hy)<3){ ok=false; break; }
+      if(G.walls.has(key(x,y))){ ok=false; break; }
+      if(G.snake.some(s=>s.x===x&&s.y===y)){ ok=false; break; }
+      cells.push({x,y});
+    }
+    if(!ok) continue;
+    cells.forEach(c=>G.walls.add(key(c.x,c.y)));
+    placed++;
+  }
+  floodReach();
+  // ensure the arena didn't get badly split: need generous reachable space
+  if(G.reach.size < (G.cols*G.rows - G.walls.size)*0.85 && guard<400){ genWalls(n); }
+}
+
+function freeCell(minDistFromHead=2, avoidNpc=true){
+  const head=G.snake[0];
+  for(let tries=0;tries<600;tries++){
+    const x=Math.floor(Math.random()*G.cols), y=Math.floor(Math.random()*G.rows);
+    const k=key(x,y);
+    if(!G.reach.has(k)) continue;
+    if(G.walls.has(k)) continue;
+    if(G.snake.some(s=>s.x===x&&s.y===y)) continue;
+    if(avoidNpc && G.npcs.some(n=>n.alive&&n.cells.some(c=>c.x===x&&c.y===y))) continue;
+    if(Math.abs(x-head.x)+Math.abs(y-head.y) < minDistFromHead) continue;
+    return {x,y};
+  }
+  return {x:1,y:1};
+}
+
+function spawnLetter(){
+  G.letter = freeCell(3);
+  // when the arena came from the fabric, each letter "sits on" a real node
+  if(Prov.letters==="fabric" && Prov.nodeNames.length){
+    G.letter.node = Prov.nodeNames[Math.floor(Math.random()*Prov.nodeNames.length)];
+  } else G.letter.node = null;
+}
+
+function makeNpc(i){
+  const p=freeCell(6);
+  return { cells:[{x:p.x,y:p.y}], prev:null, dir:{...DIRS[Math.floor(Math.random()*4)]},
+           alive:true, respawnAt:0, colorIdx:i, blinkT:0 };
+}
+
+function buildSnakeForLevel(n){
+  // head + one tail segment per level, laid out leftward then serpentining down
+  const len=n+1;
+  const cx=Math.floor(G.cols/2), cy=Math.floor(G.rows/2);
+  const body=[{x:cx,y:cy}];
+  let x=cx, y=cy, dx=-1;
+  while(body.length<len){
+    const nx=x+dx;
+    if(nx<1 || nx>G.cols-2){ y+=1; dx=-dx; }
+    else x=nx;
+    body.push({x,y});
+  }
+  G.snake=body;
+  G.prevSnake=null;
+  G.dir={x:1,y:0}; G.dirQ=[]; G.grow=0; G.turned=false;
+}
+function fabricArena(n){
+  // Levels 1-5 size to the real topology; 6+ "scale out" synthetically.
+  const f = EDA.fabric;
+  Prov.fabricNodes = f ? f.nodes.length : 0;
+  Prov.downLinks   = f ? f.links.filter(l=>!l.up).length : 0;
+  Prov.adminDown   = f ? f.links.filter(l=>l.adminDown).length : 0;
+  if(!f || n>5){
+    Prov.arena = n>5 ? "scale-out" : "synthetic";
+    Prov.letters = f ? "fabric" : "synthetic";
+    return null;
+  }
+  Prov.arena = "fabric";
+  Prov.letters = "fabric";
+  Prov.nodeNames = f.nodes.map(n2=>n2.name);
+  // one column per node, minimum playable size, grows with the level
+  const cols = Math.max(15, Math.min(f.nodes.length*3 + 2, 24)) + (n-1);
+  const rows = Math.max(11, Math.min(Math.ceil(f.nodes.length/2)*3, 16)) + Math.floor((n-1)*0.7);
+  return { cols, rows };
+}
+function buildLevel(n, freshSnake=true){
+  const cfg=levelConfig(n);
+  const fa=fabricArena(n);
+  G.level=n;
+  G.cols = fa ? fa.cols : cfg.cols;
+  G.rows = fa ? fa.rows : cfg.rows;
+  G.tickMs=cfg.tickMs;                     // skill ramp stays synthetic, always
+  Music.level=n;
+  resizeCanvas();
+  if(freshSnake) buildSnakeForLevel(n);
+  genWalls(n);
+  G.npcs=[]; for(let i=0;i<cfg.npcCount;i++) G.npcs.push(makeNpc(i));
+  G.letterIdx=0; G.lettersGot=0; spawnLetter();
+  G.hez=HEZ_START;
+  G.popups=[]; G.inNeedle=false;
+  G.levelStartScore=G.score;
+  G.pulseScope = n>=15?3 : n>=10?2 : n>=5?1 : 0.5;
+  applyChrome();
+  updateHUD();
+}
+
+/* ---------- HUD / chrome ---------- */
+const scoreV=document.getElementById("scoreV"),
+      levelV=document.getElementById("levelV"),
+      lettersV=document.getElementById("lettersV"),
+      livesV=document.getElementById("lives"),
+      seqEl=document.getElementById("seq");
+
+function updateHUD(){
+  scoreV.textContent=G.score;
+  levelV.textContent=G.level;
+  lettersV.textContent=`${G.lettersGot}/${LETTERS_PER_LEVEL}`;
+  livesV.textContent = G.dev ? "∞" : "●".repeat(Math.max(0,G.lives));
+  seqEl.innerHTML="";
+  SEQ.forEach((ch,i)=>{
+    const s=document.createElement("span");
+    s.innerHTML=glyphSVG(ch);
+    if(i===G.letterIdx) s.className="next";
+    else if(i<G.letterIdx) s.className="done";
+    seqEl.appendChild(s);
+  });
+}
+function applyChrome(){
+  const P=palette(G.level);
+  document.body.style.background=P.bg;
+  document.documentElement.style.setProperty("--hud-fg",P.hudFg);
+  document.documentElement.style.setProperty("--accent",P.accent);
+  document.body.classList.toggle("darkui", P.t>=0.32);
+  scanEl.style.opacity = G.lowFx ? 0 : Math.max(0,(P.t-0.35))*0.5;
+}
+
+/* ---------- score & popups ---------- */
+function award(pts, label, gx, gy, sfx){
+  G.score+=pts;
+  const px = gx!=null ? (gx+0.5)*CELL : G.cols*CELL/2;
+  const py = gy!=null ? (gy-0.1)*CELL : G.rows*CELL/2;
+  G.popups.push({label, pts:"+"+pts, x:px, y:py, age:0});
+  if(sfx) Music.sfx(sfx);
+  updateHUD();
+}
+
+/* ---------- solidity checks ---------- */
+function outOfBounds(x,y){ return x<0||y<0||x>=G.cols||y>=G.rows; }
+function isSolidFor(x,y,{selfTail=true,npc=true}={}){
+  if(outOfBounds(x,y)) return "edge";
+  const k=key(x,y);
+  if(G.walls.has(k)) return "wall";
+  const lim=selfTail?G.snake.length:G.snake.length-1;
+  for(let i=0;i<lim;i++){ if(G.snake[i].x===x&&G.snake[i].y===y) return "self"; }
+  if(npc){ for(const n of G.npcs){ if(n.alive&&n.cells.some(c=>c.x===x&&c.y===y)) return "npc"; } }
+  return null;
+}
+
+/* ============================================================
+   TICK LOGIC — player, maneuvers, NPC AI
+   ============================================================ */
+function tick(){
+  if(!G.letter) spawnLetter();          // safety net: a level must never lack a letter
+  if(G.diff==="hez"){
+    G.hez-=G.tickMs;
+    if(G.hez<=0){
+      G.popups.push({label:"Time's up!", pts:"", neg:true, x:G.cols*CELL/2, y:G.rows*CELL/2, age:0});
+      playerDies(); return;
+    }
+  }
+  // --- apply buffered turn (unless one was locked in at press time) ---
+  if(!G.turned){
+    while(G.dirQ.length){ if(applyTurn(G.dirQ.shift())) break; }
+  }
+
+  G.prevSnake=G.snake.map(c=>({x:c.x,y:c.y}));
+  const head=G.snake[0];
+  const nx=head.x+G.dir.x, ny=head.y+G.dir.y;
+  const hit=isSolidFor(nx,ny,{selfTail:G.grow>0});   // tail vacates unless growing
+  if(hit){
+    // moving into own tail-tip is fatal only if not vacating — handled above
+    playerDies(); return;
+  }
+  G.snake.unshift({x:nx,y:ny});
+  if(G.grow>0) G.grow--; else G.snake.pop();
+  G.turned=false;
+
+  // --- thread the needle: both flanks are true obstacles (edge/wall/NPC) ---
+  const obst=(x,y)=>{
+    if(outOfBounds(x,y)) return true;
+    if(G.walls.has(key(x,y))) return true;
+    return G.npcs.some(o=>o.alive&&o.cells.some(c=>c.x===x&&c.y===y));
+  };
+  const s1=obst(nx+G.dir.y, ny+G.dir.x), s2=obst(nx-G.dir.y, ny-G.dir.x);
+  if(s1&&s2){
+    if(!G.inNeedle){ G.inNeedle=true; award(20+G.level,"Thread the needle",nx,ny,"bonus"); }
+  } else G.inNeedle=false;
+
+  // --- letter pickup ---
+  if(G.letter && nx===G.letter.x && ny===G.letter.y){
+    const ch=SEQ[G.letterIdx];
+    const node=G.letter.node;
+    G.grow++;
+    if(G.diff==="hez") G.hez=Math.min(HEZ_MAX, G.hez+HEZ_PER_LETTER);
+    award(10+G.level, node ? ch+" · "+node : ch, nx, ny, "eat");
+    G.letterIdx=(G.letterIdx+1)%SEQ.length;
+    if(ch==="A") award(25,"NOKIA!",nx,ny-1,"bonus");
+    G.lettersGot++;
+    if(G.lettersGot>=LETTERS_PER_LEVEL){ startLevelEnd(); return; }
+    spawnLetter(); updateHUD();
+  }
+
+  // --- NPC turns (slower than the player: interference, not domination) ---
+  G.tickCount=(G.tickCount||0)+1;
+  const npcGo = G.level>=12 ? (G.tickCount%3!==0) : (G.tickCount%2===0);
+  if(!npcGo) return;
+  // nearest NPC hunts the letter; the rest roam their own waypoints
+  let hunter=null, best=1e9;
+  for(const n of G.npcs){
+    if(!n.alive) continue;
+    const d=Math.abs(n.cells[0].x-G.letter.x)+Math.abs(n.cells[0].y-G.letter.y);
+    if(d<best){ best=d; hunter=n; }
+  }
+  for(const n of G.npcs){
+    if(!n.alive){
+      if(n.respawnAt && performance.now()>n.respawnAt){
+        Object.assign(n, makeNpc(n.colorIdx));
+      }
+      continue;
+    }
+    npcMove(n, n===hunter ? G.letter : npcRoam(n));
+  }
+}
+function roamPoint(){
+  const arr=[...G.reach];
+  const [x,y]=arr[Math.floor(Math.random()*arr.length)].split(",").map(Number);
+  return {x,y};
+}
+function npcRoam(n){
+  const h=n.cells[0];
+  if(!n.roam || (h.x===n.roam.x&&h.y===n.roam.y) || Math.random()<0.02) n.roam=roamPoint();
+  return n.roam;
+}
+
+function npcBlocked(n,x,y){
+  if(outOfBounds(x,y)) return "edge";
+  const k=key(x,y);
+  if(G.walls.has(k)) return "wall";
+  if(G.snake.some(s=>s.x===x&&s.y===y)) return "player";
+  for(const o of G.npcs){
+    if(!o.alive) continue;
+    const cells=(o===n)?o.cells.slice(0,-1):o.cells;
+    if(cells.some(c=>c.x===x&&c.y===y)) return "npc";
+  }
+  return null;
+}
+function npcMove(n, target){
+  n.prev=n.cells.map(c=>({x:c.x,y:c.y}));
+  n.moveT=performance.now();
+  n.moveDur=G.tickMs*(G.level>=12 ? 1.5 : 2);   // matches their cadence
+  const h=n.cells[0];
+  const opts=DIRS.filter(d=>!(d.x===-n.dir.x&&d.y===-n.dir.y));
+  const valid=opts.filter(d=>!npcBlocked(n,h.x+d.x,h.y+d.y));
+  if(!valid.length){
+    // cornered — if the player's body is part of the trap, credit the kill
+    const byPlayer=opts.some(d=>npcBlocked(n,h.x+d.x,h.y+d.y)==="player");
+    npcDie(n, byPlayer);
+    return;
+  }
+  let choice;
+  if(Math.random()<0.15) choice=valid[Math.floor(Math.random()*valid.length)];
+  else{
+    const t=target||G.letter||{x:G.cols/2,y:G.rows/2};
+    const cost=(d)=>{
+      const nx2=h.x+d.x, ny2=h.y+d.y;
+      let c=Math.abs(nx2-t.x)+Math.abs(ny2-t.y);
+      for(const o of G.npcs){                       // separation: stay out of each other's orbit
+        if(o===n||!o.alive) continue;
+        const oh=o.cells[0];
+        if(Math.abs(nx2-oh.x)+Math.abs(ny2-oh.y)<=2) c+=4;
+      }
+      return c;
+    };
+    valid.sort((a,b)=>cost(a)-cost(b));
+    choice=valid[0];
+  }
+  n.dir=choice;
+  const nx=h.x+choice.x, ny=h.y+choice.y;
+  n.cells.unshift({x:nx,y:ny});
+  let grew=false;
+  if(G.letter && nx===G.letter.x && ny===G.letter.y){
+    grew=n.cells.length<10;
+    const pen=10+G.level;                      // stolen letters cost what they'd have paid
+    G.score=Math.max(0, G.score-pen);
+    G.popups.push({label:"Stolen!", pts:"-"+pen, neg:true, x:(nx+0.5)*CELL, y:ny*CELL, age:0});
+    updateHUD();
+    spawnLetter();
+  }
+  if(!grew) n.cells.pop();
+  // head-on into the player's head cell → the house always wins
+  const ph=G.snake[0];
+  if(nx===ph.x&&ny===ph.y) npcDie(n,true);
+}
+function npcDie(n, byPlayer){
+  spawnExplosion(n.cells, palette(1).npc[n.colorIdx%3]);
+  Music.sfx("boom");
+  n.alive=false;
+  n.respawnAt=performance.now()+4000;
+  if(byPlayer) award(50+G.level*2,"Snake slayer!",n.cells[0].x,n.cells[0].y,"kill");
+}
+
+function spawnExplosion(cells, color){
+  const per = G.lowFx ? 2 : 5;
+  for(const c of cells){
+    for(let i=0;i<per;i++){
+      const a=Math.random()*Math.PI*2, sp=(1.5+Math.random()*3.2);
+      G.particles.push({
+        x:(c.x+0.5)*CELL, y:(c.y+0.5)*CELL,
+        vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:0, maxLife:0.55+Math.random()*0.35,
+        sz:3+Math.random()*5, color
+      });
+    }
+  }
+}
+function playerDies(){
+  if(!G.dev) G.lives--;
+  spawnExplosion(G.snake, "#005AFF");
+  Music.sfx("boom");
+  updateHUD();
+  G.state="dying"; G.dieT=performance.now();
+}
+function afterDeath(){
+  if(G.lives<=0 && !G.dev){ showGameOver(); return; }
+  buildSnakeForLevel(G.level);
+  G.inNeedle=false;
+  if(G.diff==="hez") G.hez=HEZ_START;
+  if(G.letter && G.snake.some(s=>s.x===G.letter.x&&s.y===G.letter.y)) spawnLetter();
+  // reassembly: pixels stream from the edges back into the new snake's cells
+  const reasmPer = G.lowFx ? 2 : 5;
+  G.reasm=G.snake.flatMap(c=>{
+    const out=[];
+    for(let i=0;i<reasmPer;i++){
+      const edge=Math.floor(Math.random()*4);
+      const W=G.cols*CELL, H=G.rows*CELL;
+      let sx, sy;
+      if(edge===0){ sx=Math.random()*W; sy=-10; }
+      else if(edge===1){ sx=Math.random()*W; sy=H+10; }
+      else if(edge===2){ sx=-10; sy=Math.random()*H; }
+      else { sx=W+10; sy=Math.random()*H; }
+      out.push({ sx, sy,
+                 tx:(c.x+0.5)*CELL+(Math.random()-0.5)*CELL*0.7,
+                 ty:(c.y+0.5)*CELL+(Math.random()-0.5)*CELL*0.7,
+                 sz:3+Math.random()*5 });
+    }
+    return out;
+  });
+  G.reasmT0=performance.now();
+  Music.sfx("boomRev");
+  G.state="reassemble";
+}
+
+/* ============================================================
+   LEVEL-END SEQUENCE
+   freeze → tail retracts to head → spiral wipe in to head →
+   popup → next level builds with reverse spiral from head
+   ============================================================ */
+function startLevelEnd(){
+  G.state="retract";
+  G.retractT=performance.now();
+}
+function computeWipeKeys(){
+  const h=G.snake[0];
+  const keys=new Float32Array(G.cols*G.rows);
+  let maxKey=0;
+  const corners=[[0,0],[G.cols-1,0],[0,G.rows-1],[G.cols-1,G.rows-1]];
+  const maxR=Math.max(...corners.map(([x,y])=>Math.hypot(x-h.x,y-h.y)));
+  for(let y=0;y<G.rows;y++)for(let x=0;x<G.cols;x++){
+    const dx=x-h.x, dy=y-h.y;
+    const r=Math.hypot(dx,dy);
+    let th=Math.atan2(dy,dx); if(th<0)th+=Math.PI*2;
+    const k=(maxR-r)+th/(Math.PI*2);
+    keys[y*G.cols+x]=k;
+    if(k>maxKey)maxKey=k;
+  }
+  G.wipe.keys=keys; G.wipe.maxKey=maxKey;
+}
+function beginWipeOut(){
+  computeWipeKeys();
+  G.wipe.t0=performance.now(); G.wipe.dur=1400;
+  G.state="wipeout";
+}
+function showLevelPopup(){
+  G.state="popup";
+  const P=palette(G.level);
+  const lvlPts=G.score-G.levelStartScore;
+  overlay.innerHTML=`
+    <h1>Level ${G.level} complete</h1>
+    <div class="big" style="color:${P.accent}">+${lvlPts}</div>
+    <div class="score">Total &nbsp;${G.score}</div>
+    <div class="hint pulseText">Press <b>Enter</b> for level ${G.level+1}</div>`;
+  overlay.classList.add("show");
+  G._popupTimer=setTimeout(()=>advanceLevel(),3800);
+}
+function advanceLevel(){
+  clearTimeout(G._popupTimer);
+  overlay.classList.remove("show");
+  if(G.level>=MAX_LEVEL){ showWin(); return; }
+  buildLevel(G.level+1);
+  if(G.diff==="hez" && G.level%5===0){
+    G.lives++;
+    G.popups.push({label:"Extra life!", pts:"+1UP", x:G.cols*CELL/2, y:G.rows*CELL*0.4, age:0});
+    Music.sfx("bonus");
+    updateHUD();
+  }
+  computeWipeKeys();
+  G.wipe.t0=performance.now(); G.wipe.dur=1400;
+  G.state="wipein";
+}
+function showWin(){ showEntry("All 20 levels cleared"); }
+function showGameOver(){ showEntry("Game over"); }
+
+/* ---------- top-10 leaderboard ----------
+   Lives in memory; also mirrored to localStorage when the file
+   runs in a normal browser so the board survives page reloads.
+   (Guarded — environments without storage just stay in-memory.) */
+const Board={
+  list:[], lastIdx:-1, backend:"local",
+  async load(){
+    if(EDA.online){
+      try{ this.list=await EDA.listScores(); this.backend="eda"; this.render(); return; }
+      catch(e){ EDA.lastError=e.message; }
+    }
+    this.backend="local";
+    try{ const s=window.localStorage&&window.localStorage.getItem("nokiaSnakeBoard");
+         if(s) this.list=JSON.parse(s).slice(0,10); }catch(e){}
+    this.render();
+  },
+  save(){ try{ window.localStorage&&window.localStorage.setItem("nokiaSnakeBoard",JSON.stringify(this.list)); }catch(e){} },
+  add(name,score){
+    const entry={name,score,level:G.level,diff:G.diff};
+    this.list.push(entry);
+    this.list.sort((a,b)=>b.score-a.score);
+    this.list=this.list.slice(0,10);
+    this.lastIdx=this.list.indexOf(entry);
+    if(this.backend==="eda"){
+      // fire-and-forget: a slow API must never block the UI returning to the menu
+      EDA.postScore(name,score,G.level,G.diff)
+         .then(()=>new Promise(r=>setTimeout(r,600)))   // let the state intent re-rank
+         .then(()=>this.load())
+         .catch(e=>{ EDA.lastError=e.message; this.save(); });
+    } else this.save();
+    this.render();
+  },
+  confirmClear:false, _confirmT:null,
+  render(){
+    const el=document.getElementById("sideBoard");
+    if(!el) return;
+    let out="<h2>Top 10</h2>";
+    for(let i=0;i<10;i++){
+      const e=this.list[i];
+      const cls = i===this.lastIdx ? "row new" : "row";
+      out+=`<div class="${cls}"><span class="rk">${i+1}</span><span class="nm">${e?e.name:"···"}</span><span>${e?e.score:"—"}</span></div>`;
+    }
+    out+=`<div class="row" style="opacity:.4;font-size:10px;letter-spacing:.14em;margin-top:6px;justify-content:center">${
+      this.backend==="eda"?"SnakeScore CRs":"local storage"}</div>`;
+    if(!(EDA.online && !EDA.user.canReset)){
+      out+=`<button id="clearBoard" class="${this.confirmClear?"confirm":""}">${this.confirmClear?"Click to confirm":"Clear scores"}</button>`;
+    }
+    el.innerHTML=out;
+  },
+  requestClear(){
+    if(EDA.online && !EDA.user.canReset) return;   // RBAC gate
+    if(this.confirmClear){ this.clear(); return; }
+    this.confirmClear=true; this.render();
+    clearTimeout(this._confirmT);
+    this._confirmT=setTimeout(()=>{ this.confirmClear=false; this.render(); }, 4000);
+  },
+  clear(){
+    clearTimeout(this._confirmT);
+    this.confirmClear=false;
+    this.list=[]; this.lastIdx=-1;
+    if(this.backend==="eda") EDA.deleteAllScores().catch(e=>{EDA.lastError=e.message;});
+    else this.save();
+    this.render();
+  }
+};
+
+/* ---------- 3-letter name entry (d-pad + ①) ---------- */
+const AZ="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function initialsFromUser(){
+  // "colin", "c.mcgregor", "Colin Smith" -> best 3-letter arcade handle
+  const raw=(EDA.user && EDA.user.name) ? String(EDA.user.name) : "";
+  const parts=raw.split(/[^A-Za-z]+/).filter(Boolean);
+  let s="";
+  if(parts.length>=3) s=parts.slice(0,3).map(p=>p[0]).join("");
+  else if(parts.length===2) s=(parts[0][0]+parts[1][0]+(parts[0][1]||parts[1][1]||"")).slice(0,3);
+  else if(parts.length===1) s=parts[0].slice(0,3);
+  s=s.toUpperCase().replace(/[^A-Z]/g,"");
+  while(s.length<3) s+="A";
+  return s.slice(0,3);
+}
+function showEntry(title){
+  G.state="entry";
+  const pre=initialsFromUser();
+  G.entry={ chars:[...pre].map(c=>AZ.indexOf(c)), slot:0, title,
+            prefilled: EDA.online && !!(EDA.user&&EDA.user.name) };
+  renderEntry();
+}
+function renderEntry(){
+  const e=G.entry;
+  const boxes=e.chars.map((c,i)=>
+    `<div class="slot${i===e.slot?" on":""}">${AZ[c]}</div>`).join("");
+  overlay.innerHTML=`
+    <h1>${e.title}</h1>
+    <div class="big">${G.score}</div>
+    <div class="hint">${e.prefilled
+      ? `initials from <b>${EDA.user.name}</b> — edit if you like`
+      : "enter your initials"}</div>
+    <div id="entryBoxes">${boxes}</div>
+    <div class="hint pulseText">▲▼ letter &nbsp;·&nbsp; ◀▶ slot &nbsp;·&nbsp; <b>Enter</b> confirm</div>`;
+  overlay.classList.add("show");
+}
+function entryNav(d){
+  const e=G.entry;
+  if(d.y===-1) e.chars[e.slot]=(e.chars[e.slot]+1)%26;
+  else if(d.y===1) e.chars[e.slot]=(e.chars[e.slot]+25)%26;
+  else if(d.x===1) e.slot=Math.min(2,e.slot+1);
+  else if(d.x===-1) e.slot=Math.max(0,e.slot-1);
+  renderEntry();
+}
+function entryConfirm(){
+  if(G.state!=="entry") return;
+  const e=G.entry;
+  // prefilled names are already complete: confirm submits immediately
+  if(!e.prefilled && e.slot<2){ e.slot++; renderEntry(); return; }
+  Board.add(e.chars.map(c=>AZ[c]).join(""), G.score);
+  showMenu();
+}
+
+
+/* ---------- "what you're about to play is made of" ----------
+   Shown once before level 1, and available from the home screen.
+   Always reports what ACTUALLY happened, fabric or not. */
+function explainRows(){
+  const f=EDA.fabric, live=EDA.online&&f;
+  const yes=v=>`<b>${v}</b>`, no=v=>`<i>${v}</i>`;
+  const rows=[
+    ["Arena size (levels 1–5)", live
+      ? yes(`${f.nodes.length} nodes in your topology`) +
+        ` — ${Prov.nodeNames.slice(0,6).join(", ")}${f.nodes.length>6?"…":""}` +
+        (f.links.length ? ` · ${f.links.length} fabric ports` : "")
+      : no("synthetic 15×11 grid — no fabric reachable")],
+    ["Arena size (levels 6–20)",
+      "Synthetic scale-out. The fabric grows faster than your lab does."],
+    ["Letters", live
+      ? yes("spawn on real nodes") + " — the HUD names the node you collected from"
+      : no("spawn on random cells")],
+    ["Walls", (live && Prov.downLinks>0)
+      ? yes(`${Prov.downLinks} down link(s)`) +
+        (Prov.adminDown ? ` (${Prov.adminDown} admin-disabled)` : "") +
+        " become obstacles, topped up synthetically"
+      : no("generated synthetically — every fabric port is up")],
+    ["Level build / teardown",
+      "Each level is an EDA " + yes("transaction") + ". The spiral wipe is the reconcile."],
+    ["Losing a snake",
+      "Rolls back to the previous " + yes("transaction") + " — the pixel reassembly is the revert."],
+    ["Level complete",
+      "Commits. EDA writes the resources to " + yes("git") + ", so the leaderboard has history."],
+    ["Leaderboard", live
+      ? yes("SnakeScore custom resources") + " in the EDB, via the EDA API"
+      : no("browser localStorage — EDA unreachable, running standalone")],
+    ["Difficulty & speed",
+      no("always synthetic") + " — deterministic, so every run on the board is comparable"],
+    ["EQL payload shape", live
+      ? yes(EDA.lastShape) + " — what the query endpoint actually returned"
+      : no("no query made")]
+  ];
+  return rows.map(([k,v])=>`<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`).join("");
+}
+function showExplainer(afterFn){
+  G.state="explain";
+  G._afterExplain = afterFn || null;
+  const live=EDA.online&&EDA.fabric;
+  overlay.innerHTML=`
+    <h1>How this game was built</h1>
+    <span id="srcTag" class="${live?"live":"offline"}">${live?"Live fabric":"Standalone — no fabric"}</span>
+    <div id="explain">
+      <h3>Game element → where it came from</h3>
+      <table>${explainRows()}</table>
+      <div class="foot">
+        Bold items are read from your live fabric through the EDA API.
+        Dimmed items the game generated itself.
+        Skill ramping is never driven by network state — that keeps every
+        leaderboard run comparable.
+      </div>
+    </div>
+    <div class="menuBtns">
+      <button class="primary" id="exOk">${afterFn?"Start level 1":"Back"}</button>
+    </div>`;
+  overlay.classList.add("show");
+  const b=document.getElementById("exOk");
+  if(b) b.onclick=()=>{
+    overlay.classList.remove("show");
+    const fn=G._afterExplain; G._afterExplain=null;
+    if(fn) fn(); else showMenu();
+  };
+}
+
+const DIFFS=[
+  ["normal","Normal",
+   "4 snakes. Steady speed, obstacles build gradually, rival snakes arrive from level 5."],
+  ["hard","Hard",
+   "2 snakes. Faster, with denser and longer walls. Rivals arrive at level 3 and grow to four."],
+  ["hez","Human Error Zero",
+   "1 snake and a draining clock — only letters YOU collect refill it; stolen letters refill nothing. "+
+   "Denser and faster than Normal. An extra life is awarded every 5 levels — you start with just one and earn the rest."]
+];
+function renderDiffSel(){
+  const el=document.getElementById("diffSel");
+  if(!el) return;
+  el.innerHTML=DIFFS.map(([id,label])=>
+    `<span class="pill${G.diff===id?" on":""}">${label}</span>`).join("");
+  const desc=document.getElementById("diffDesc");
+  if(desc){
+    const d=DIFFS.find(x=>x[0]===G.diff);
+    desc.textContent=d?d[2]:"";
+  }
+}
+function menuNav(d){
+  if(!d.x) return;
+  const i=DIFFS.findIndex(x=>x[0]===G.diff);
+  G.diff=DIFFS[(i+(d.x>0?1:DIFFS.length-1))%DIFFS.length][0];
+  renderDiffSel();
+}
+function showMenu(){
+  G.state="menu";
+  G.dev=false; G.konami=[];
+  G.menuIdx=0; G.menuBeatT=0;
+  Music.stop();                      // attract chords replace the game sequencer
+  document.body.style.transitionDuration="3.5s";
+  buildLevel(1);
+  const live=EDA.online&&EDA.fabric;
+  overlay.innerHTML=`
+    <canvas id="titleCanvas" width="380" height="76"></canvas>
+    <span id="srcTag" class="${live?"live":"offline"}">${
+      live?`Live fabric · ${EDA.fabric.nodes.length} nodes`:"Standalone — no fabric"}</span>
+    <div class="hint">Spell NOKIA once to clear each level.<br>
+    Dodge walls and rival snakes — style points for close calls.</div>
+    <div id="diffSel"></div>
+    <div id="diffDesc" class="hint"></div>
+    <div class="menuBtns">
+      <button class="primary" id="btnPlay">Play</button>
+      <button id="btnHow">How it's built</button>
+      <button class="danger" id="btnReset" ${EDA.online&&!EDA.user.canReset?"disabled":""}>Reset leaderboard</button>
+      <button id="btnFx" class="${G.lowFx?"":"primary"}">Effects: ${G.lowFx?"reduced":"full"}</button>
+    </div>
+    <div class="hint" style="opacity:.45">◀ ▶ difficulty &nbsp;·&nbsp; <b>Enter</b> play${
+      EDA.online&&!EDA.user.canReset?" &nbsp;·&nbsp; reset requires elevated permissions":""}</div>`;
+  overlay.classList.add("show");
+  renderDiffSel();
+  const bp=document.getElementById("btnPlay"), bh=document.getElementById("btnHow"),
+        br=document.getElementById("btnReset");
+  if(bp) bp.onclick=()=>primary();
+  if(bh) bh.onclick=()=>showExplainer(null);
+  const bf=document.getElementById("btnFx");
+  if(bf) bf.onclick=()=>{ setFx(!G.lowFx); showMenu(); };
+  if(br) br.onclick=()=>Board.requestClear();
+  drawSnakeTitle(document.getElementById("titleCanvas"),"SNAKE","#3D7BFF","#7CF7FF");
+}
+function drawTitleWord(c){
+  const x=c.getContext("2d");
+  x.clearRect(0,0,c.width,c.height);
+  const s=c.height*0.9, w=s*0.8, x0=c.width/2-(SEQ.length-1)*w/2;
+  SEQ.forEach((ch,i)=>drawGlyph(x,ch,x0+i*w,c.height/2,s,"#EAF0FF",0.6));
+}
+function startCountdown(){
+  G.state="countdown"; G.countT0=performance.now();
+}
+function startGame(){
+  // first launch of a session: show what the game is made of, then play
+  if(!G.explained){ G.explained=true; showExplainer(()=>startGame()); return; }
+  document.body.style.transitionDuration="0.8s";
+  overlay.classList.remove("show");
+  Board.lastIdx=-1; Board.render();
+  G.score=0;
+  G.lives = G.diff==="normal" ? 4 : G.diff==="hard" ? 2 : 1;
+  buildLevel(1);
+  Music.start();
+  startCountdown();
+}
+
+/* ============================================================
+   INPUT — keyboard + 3-button USB pad (Gamepad API)
+   d-pad: move · B0 ①: start/confirm · B1 ②: pause · B2 ③: mute
+   ============================================================ */
+function applyTurn(nd){
+  if(nd.x===-G.dir.x&&nd.y===-G.dir.y) return false;
+  if(nd.x===G.dir.x&&nd.y===G.dir.y) return false;
+  const head=G.snake[0];
+  const aheadBlocked=isSolidFor(head.x+G.dir.x, head.y+G.dir.y);
+  G.dir=nd;
+  if(aheadBlocked && performance.now()-G.lastCloseCall>800){
+    G.lastCloseCall=performance.now();
+    const names={edge:"Wall dodge",wall:"Barrier dodge",self:"Tail dodge",npc:"Snake dodge"};
+    award(10+Math.floor(G.level/2), names[aheadBlocked]||"Close call", head.x, head.y, "bonus");
+  }
+  return true;
+}
+function pushDir(d){
+  if(G.state==="entry"){ entryNav(d); return; }
+  if(G.state==="menu"){ menuNav(d); return; }
+  // instant lock-in when nothing is pending — removes perceived input lag
+  if(G.state==="play" && !G.turned && G.dirQ.length===0){
+    if(applyTurn(d)) G.turned=true;
+    return;
+  }
+  const last=G.dirQ.length?G.dirQ[G.dirQ.length-1]:G.dir;
+  if(d.x===-last.x&&d.y===-last.y) return;
+  if(d.x===last.x&&d.y===last.y) return;
+  if(G.dirQ.length<2) G.dirQ.push(d);
+}
+function primary(){
+  Music.ensure(); Music.start();
+  if(G.state==="explain"){ const b=document.getElementById("exOk"); if(b) b.onclick(); return; }
+  if(G.state==="entry") entryConfirm();
+  else if(G.state==="menu"||G.state==="gameover"||G.state==="win") startGame();
+  else if(G.state==="popup") advanceLevel();
+  else if(G.state==="paused"){ G.state="play"; overlay.classList.remove("show"); G.lastTick=performance.now(); }
+}
+function togglePause(){
+  if(G.state==="play"){
+    G.state="paused";
+    overlay.innerHTML=`<h1>Paused</h1><div class="hint pulseText">Press <b>P</b> to resume</div>`;
+    overlay.classList.add("show");
+  } else if(G.state==="paused"){
+    G.state="play"; overlay.classList.remove("show"); G.lastTick=performance.now();
+  }
+}
+function toggleMute(){
+  G.muted=!G.muted; Music.setMuted(G.muted);
+}
+
+/* ---------- ESC reset + dev mode (Konami while paused) ---------- */
+function resetToMenu(){
+  clearTimeout(G._popupTimer);
+  G.dirQ=[]; G.konami=[];
+  G.track=(G.track+1)%TRACKS.length;   // Esc rotates the soundtrack
+  Music.trackIdx=G.track;
+  showMenu();          // showMenu clears dev mode
+}
+const KONAMI=["up","up","down","down","left","right","left","right","b","a"];
+function konamiFeed(tok){
+  G.konami.push(tok);
+  if(G.konami.length>KONAMI.length) G.konami.shift();
+  if(G.konami.join(",")===KONAMI.join(",")) activateDev();
+}
+function activateDev(){
+  G.dev=true; G.konami=[];
+  updateHUD();
+  overlay.classList.remove("show");
+  G.state="play"; G.lastTick=performance.now();
+  G.popups.push({label:"DEV MODE", pts:"", x:G.cols*CELL/2, y:G.rows*CELL/2, age:0});
+  Music.sfx("bonus");
+}
+function devJump(step){
+  if(!G.dev) return;
+  const n=Math.min(MAX_LEVEL, Math.max(1, G.level+step));
+  clearTimeout(G._popupTimer);
+  overlay.classList.remove("show");
+  buildLevel(n);
+  G.state="play"; G.lastTick=performance.now();
+  G.popups.push({label:"Level "+n, pts:"", x:G.cols*CELL/2, y:G.rows*CELL/2, age:0});
+}
+
+window.addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase();
+  if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(k)) e.preventDefault();
+  if(k==="escape"){ resetToMenu(); return; }
+  if(G.state==="entry" && k.length===1 && k>="a" && k<="z"){
+    const en=G.entry;
+    en.chars[en.slot]=AZ.indexOf(k.toUpperCase());
+    if(en.slot<2) en.slot++;
+    renderEntry(); return;
+  }
+  // Konami listener: only while paused and not already in dev mode
+  if(G.state==="paused" && !G.dev){
+    const tok={arrowup:"up",arrowdown:"down",arrowleft:"left",arrowright:"right",b:"b",a:"a"}[k];
+    if(tok){ konamiFeed(tok); if(G.dev) return; }
+    if(k==="p"||k==="enter"||k===" "){ togglePause(); }
+    else if(k==="m") toggleMute();
+    return;   // paused: swallow everything else (no queued turns)
+  }
+  if(G.dev && (k==="<"||k===","||k===">"||k===".")){
+    devJump((k===">"||k===".")?1:-1); return;
+  }
+  if(k==="arrowup"||k==="w") pushDir({x:0,y:-1});
+  else if(k==="arrowdown"||k==="s") pushDir({x:0,y:1});
+  else if(k==="arrowleft"||k==="a") pushDir({x:-1,y:0});
+  else if(k==="arrowright"||k==="d") pushDir({x:1,y:0});
+  else if(k==="enter"||k===" ") primary();
+  else if(k==="p") togglePause();
+  else if(k==="m") toggleMute();
+});
+
+const pad={b:[false,false,false], up:false,down:false,left:false,right:false};
+function pollPads(){
+  const gps=navigator.getGamepads?navigator.getGamepads():[];
+  for(const gp of gps){
+    if(!gp) continue;
+    // d-pad as buttons 12-15 (standard) or axes 0/1 (many budget pads)
+    const U=(gp.buttons[12]&&gp.buttons[12].pressed)||gp.axes[1]<-0.5;
+    const D=(gp.buttons[13]&&gp.buttons[13].pressed)||gp.axes[1]> 0.5;
+    const L=(gp.buttons[14]&&gp.buttons[14].pressed)||gp.axes[0]<-0.5;
+    const R=(gp.buttons[15]&&gp.buttons[15].pressed)||gp.axes[0]> 0.5;
+    if(U&&!pad.up) pushDir({x:0,y:-1});
+    if(D&&!pad.down) pushDir({x:0,y:1});
+    if(L&&!pad.left) pushDir({x:-1,y:0});
+    if(R&&!pad.right) pushDir({x:1,y:0});
+    pad.up=U;pad.down=D;pad.left=L;pad.right=R;
+    for(let i=0;i<3;i++){
+      const p=!!(gp.buttons[i]&&gp.buttons[i].pressed);
+      if(p&&!pad.b[i]){
+        if(i===0) primary();
+        else if(i===1) togglePause();
+        else toggleMute();
+      }
+      pad.b[i]=p;
+    }
+    break; // first connected pad wins
+  }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(x,y,w,h,r);
+  else ctx.rect(x,y,w,h);
+}
+function drawScene(){
+  const P=palette(G.level);
+  const W=G.cols*CELL, H=G.rows*CELL;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=P.bg; ctx.fillRect(0,0,W,H);
+
+  // grid — pulses with the beat at scope 3 (level 15+)
+  const gp = G.pulseScope>=3 ? G.pulse : 0;
+  ctx.strokeStyle=P.gridCol;
+  ctx.lineWidth=1+gp*0.8;
+  ctx.beginPath();
+  for(let x=1;x<G.cols;x++){ ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,H); }
+  for(let y=1;y<G.rows;y++){ ctx.moveTo(0,y*CELL); ctx.lineTo(W,y*CELL); }
+  ctx.stroke();
+
+  // walls — pulse at scope 2 (level 10+)
+  const wp = G.pulseScope>=2 ? G.pulse : 0;
+  for(const k of G.walls){
+    const [x,y]=k.split(",").map(Number);
+    ctx.save();
+    if(P.glow>0.15){ ctx.shadowColor=P.wallEdge; ctx.shadowBlur=fxBlur((6+10*wp)*P.glow); }
+    ctx.fillStyle=P.wall;
+    rr(x*CELL+1.5, y*CELL+1.5, CELL-3, CELL-3, 4+3*P.glow);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // letter — always the brightest thing on the field
+  if(G.letter && G.state!=="retract" && G.state!=="wipeout" && G.state!=="popup"){
+    const lp = G.pulseScope>=0.5 ? G.pulse : 0;
+    const s = CELL*(0.92+0.10*lp);
+    ctx.save();
+    ctx.shadowColor=P.letter; ctx.shadowBlur=fxBlur((4+16*lp)* (0.3+P.glow));
+    drawGlyph(ctx, SEQ[G.letterIdx], (G.letter.x+0.5)*CELL, (G.letter.y+0.5)*CELL, s, P.letter, P.glow);
+    ctx.restore();
+  }
+
+  // motion interpolation: fraction of the current tick elapsed
+  const mf = G.state==="play"
+    ? Math.min(1, Math.max(0,(performance.now()-G.lastTick)/G.tickMs)) : 1;
+  const lerpCell=(cur,prevArr,i)=>{
+    const p=(prevArr&&prevArr[i])?prevArr[i]:cur;
+    return { x:p.x+(cur.x-p.x)*mf, y:p.y+(cur.y-p.y)*mf };
+  };
+
+  // NPC snakes
+  for(const n of G.npcs){
+    if(!n.alive) continue;
+    const col=palette(1).npc[n.colorIdx%3];
+    ctx.save();
+    if(P.glow>0.2){ ctx.shadowColor=col; ctx.shadowBlur=fxBlur(6*P.glow); }
+    const nf = n.moveT ? Math.min(1, Math.max(0,(performance.now()-n.moveT)/n.moveDur)) : 1;
+    const lerpN=(cur,i)=>{
+      const p=(n.prev&&n.prev[i])?n.prev[i]:cur;
+      return { x:p.x+(cur.x-p.x)*nf, y:p.y+(cur.y-p.y)*nf };
+    };
+    n.cells.forEach((c,i)=>{
+      const ip=lerpN(c,i);
+      ctx.fillStyle=col;
+      ctx.globalAlpha=i===0?1:0.85;
+      rr(ip.x*CELL+2, ip.y*CELL+2, CELL-4, CELL-4, i===0?7:5);
+      ctx.fill();
+    });
+    ctx.restore();
+    ctx.globalAlpha=1;
+  }
+
+  // player snake — Nokia blue, shifting to red as the HEZ clock empties
+  let bodyCol=P.snake, headCol=P.snakeHd;
+  if(G.diff==="hez"){
+    const f=Math.max(0, Math.min(1, G.hez/HEZ_MAX));
+    if(f<0.25){
+      const u=1-f/0.25;                               // 0 at 25%, 1 at empty
+      bodyCol=mix("#005AFF","#FF1E2D",u);
+      headCol=mix("#4D8BFF","#FF6B6B",u);
+    }
+  }
+  const hideSnake = G.state==="dying"||G.state==="reassemble";
+  ctx.save();
+  if(P.glow>0.1){ ctx.shadowColor=bodyCol; ctx.shadowBlur=fxBlur(4+12*P.glow); }
+  for(let i=hideSnake?-1:G.snake.length-1;i>=0;i--){
+    const ip=lerpCell(G.snake[i], G.prevSnake, i);
+    ctx.fillStyle=i===0?headCol:bodyCol;
+    const inset=i===0?1:2;
+    rr(ip.x*CELL+inset, ip.y*CELL+inset, CELL-inset*2, CELL-inset*2, i===0?8:5);
+    ctx.fill();
+  }
+  ctx.restore();
+  // eyes ride the interpolated head
+  if(G.snake.length && !hideSnake){
+    const h=lerpCell(G.snake[0], G.prevSnake, 0), d=G.dir;
+    ctx.fillStyle=P.bg;
+    const ex=(h.x+0.5)*CELL, ey=(h.y+0.5)*CELL, o=CELL*0.18, f=CELL*0.16;
+    ctx.beginPath();
+    ctx.arc(ex+d.x*f - d.y*o, ey+d.y*f - d.x*o, CELL*0.075, 0, 7);
+    ctx.arc(ex+d.x*f + d.y*o, ey+d.y*f + d.x*o, CELL*0.075, 0, 7);
+    ctx.fill();
+  }
+
+  // explosion pixels
+  if(G.particles.length){
+    ctx.save();
+    for(const q of G.particles){
+      ctx.globalAlpha=Math.max(0,1-q.life/q.maxLife);
+      ctx.fillStyle=q.color;
+      ctx.fillRect(Math.round(q.x-q.sz/2), Math.round(q.y-q.sz/2), q.sz, q.sz);
+    }
+    ctx.restore();
+  }
+  // reassembly pixels streaming back into the next snake
+  if(G.state==="reassemble" && G.reasm){
+    const e=Math.min(1,(performance.now()-G.reasmT0)/650);
+    const ease=1-Math.pow(1-e,3);
+    ctx.save();
+    ctx.fillStyle="#005AFF";
+    ctx.globalAlpha=0.5+0.5*ease;
+    for(const q of G.reasm){
+      const x=q.sx+(q.tx-q.sx)*ease, y=q.sy+(q.ty-q.sy)*ease;
+      ctx.fillRect(Math.round(x-q.sz/2), Math.round(y-q.sz/2), q.sz, q.sz);
+    }
+    ctx.restore();
+  }
+
+  // score popups — outlined so they read on every level's background
+  const popOutline = P.t>=0.32 ? "rgba(5,0,20,0.85)" : "rgba(255,255,255,0.9)";
+  for(const p of G.popups){
+    const a=1-p.age/1.15;
+    if(a<=0) continue;
+    ctx.save();
+    ctx.globalAlpha=Math.min(1,a*1.4);
+    ctx.textAlign="center";
+    ctx.lineJoin="round";
+    ctx.lineWidth=Math.max(3, CELL*0.14);
+    ctx.strokeStyle=popOutline;
+    const col = p.neg ? "#FF4D5E" : P.popup;
+    const yy=p.y - p.age*26;
+    ctx.font=`700 ${Math.round(CELL*0.52)}px "Segoe UI",system-ui,sans-serif`;
+    ctx.strokeText(p.label, p.x, yy);
+    ctx.fillStyle=col; ctx.fillText(p.label, p.x, yy);
+    if(p.pts){
+      ctx.font=`800 ${Math.round(CELL*0.62)}px "Segoe UI",system-ui,sans-serif`;
+      ctx.strokeText(p.pts, p.x, yy+CELL*0.66);
+      ctx.fillText(p.pts, p.x, yy+CELL*0.66);
+    }
+    ctx.restore();
+  }
+
+  // death flash
+  if(G.state==="dying"){
+    const e=(performance.now()-G.dieT)/900;
+    ctx.fillStyle=`rgba(255,40,60,${0.35*Math.sin(Math.min(1,e)*Math.PI)})`;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // level-start countdown: 3 · 2 · 1
+  if(G.state==="countdown"){
+    const e=performance.now()-G.countT0;
+    const n=Math.max(1, 3-Math.floor(e/500));
+    const frac=(e%500)/500;
+    const sc=1.25-0.25*frac;
+    ctx.save();
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.font=`800 ${Math.round(CELL*3*sc)}px "Segoe UI",system-ui,sans-serif`;
+    ctx.globalAlpha=0.95-0.35*frac;
+    ctx.lineWidth=CELL*0.28;
+    ctx.strokeStyle = P.t>=0.32 ? "rgba(5,0,20,0.8)" : "rgba(255,255,255,0.85)";
+    ctx.strokeText(String(n), W/2, H/2);
+    ctx.fillStyle=P.accent;
+    ctx.fillText(String(n), W/2, H/2);
+    ctx.restore();
+  }
+
+  // spiral wipes
+  if(G.state==="wipeout"||G.state==="wipein"||G.state==="popup"){
+    const e = G.state==="popup" ? 1 : Math.min(1,(performance.now()-G.wipe.t0)/G.wipe.dur);
+    const ease = 1-Math.pow(1-e,2.2);
+    ctx.fillStyle=P.voidCol;
+    const K=G.wipe.keys, mk=G.wipe.maxKey;
+    for(let y=0;y<G.rows;y++)for(let x=0;x<G.cols;x++){
+      const k=K[y*G.cols+x];
+      let covered;
+      if(G.state==="wipein") covered = (mk-k) > ease*(mk+0.001);          // reveal head → out
+      else covered = k <= ease*(mk-0.02);                                  // consume edge → head
+      if(covered) ctx.fillRect(x*CELL-0.5, y*CELL-0.5, CELL+1, CELL+1);
+    }
+  }
+}
+
+/* ---------- main loop ---------- */
+function loop(now){
+  requestAnimationFrame(loop);
+  pollPads();
+  G.pulse*=0.90;
+
+  switch(G.state){
+    case "menu":{
+      const MENU_PERIOD=(TRACKS[G.track]||TRACKS[0]).period;
+      if(now-G.menuBeatT>MENU_PERIOD){
+        G.menuBeatT=now;
+        G.menuIdx=(G.menuIdx+1)%MAX_LEVEL;
+        const tp=palette(G.menuIdx+1);
+        const tc=document.getElementById("titleCanvas");
+        const thue=(TRACKS[G.track]||TRACKS[0]).hue;
+        if(tc) drawSnakeTitle(tc,"SNAKE", hueShift(tp.snake,thue), hueShift(tp.snakeHd,thue));
+        // the whole page drifts through the level progression
+        document.body.style.background=tp.bg;
+        document.documentElement.style.setProperty("--hud-fg",tp.hudFg);
+        document.body.classList.toggle("darkui", tp.t>=0.32);
+        const glowEl=document.getElementById("roomGlow");
+        if(glowEl){
+          const acc=hueShift(tp.accent, (TRACKS[G.track]||TRACKS[0]).hue);
+          const ac=acc.replace("rgb(","").replace(")","");
+          glowEl.style.background=
+            `radial-gradient(ellipse at 50% 45%, rgba(${ac},0.30) 0%, rgba(${ac},0.12) 38%, transparent 72%)`;
+        }
+        Music.menuChord(G.menuIdx);
+      }
+      // slow breath synced to the chord: swell to mid, fall away
+      const ph=Math.min(1,(now-G.menuBeatT)/MENU_PERIOD);
+      G.breath=Math.sin(Math.PI*ph);
+      break;}
+    case "play":
+      if(now-G.lastTick>=G.tickMs){
+        if(now-G.lastTick>G.tickMs*2.5) G.lastTick=now-G.tickMs;  // frame hitch: drop the debt, no burst moves
+        G.lastTick+=G.tickMs;
+        tick();
+      }
+      break;
+    case "dying":
+      if(now-G.dieT>900) afterDeath();
+      break;
+    case "reassemble":
+      if(now-G.reasmT0>=650){ G.reasm=null; startCountdown(); }
+      break;
+    case "retract":
+      if(now-G.retractT>45){
+        G.retractT=now;
+        if(G.snake.length>1) G.snake.pop();
+        else beginWipeOut();
+      }
+      break;
+    case "wipeout":
+      if(now-G.wipe.t0>=G.wipe.dur) showLevelPopup();
+      break;
+    case "wipein":
+      if(now-G.wipe.t0>=G.wipe.dur) startCountdown();
+      break;
+    case "countdown":
+      if(now-G.countT0>=1500){ G.state="play"; G.lastTick=now; }
+      break;
+  }
+
+  // popup + particle aging
+  for(const p of G.popups) p.age+=1/60;
+  G.popups=G.popups.filter(p=>p.age<1.2);
+  for(const q of G.particles){
+    q.x+=q.vx; q.y+=q.vy;
+    q.vx*=0.96; q.vy*=0.96;
+    q.life+=1/60;
+  }
+  G.particles=G.particles.filter(q=>q.life<q.maxLife);
+
+  drawScene();
+  updateHezBar();
+
+  // glow: slow whole-screen breath on menu, beat-synced border in-game
+  const P=palette(G.level);
+  const roomGlow=document.getElementById("roomGlow");
+  if(G.state==="menu"){
+    const tp=palette(G.menuIdx+1);
+    const b=G.breath||0;
+    if(roomGlow) roomGlow.style.opacity=G.lowFx?"0":(0.20+0.70*b).toFixed(3);
+    cv.style.boxShadow=G.lowFx?"none"
+      :`0 0 ${Math.round(16+80*b)}px ${hueShift(tp.accent,(TRACKS[G.track]||TRACKS[0]).hue)}`;
+  } else {
+    if(roomGlow) roomGlow.style.opacity="0";
+    if(G.pulseScope>=1 && P.glow>0.05){
+    cv.style.boxShadow=`0 0 ${Math.round(6+34*G.pulse*P.glow)}px ${P.accent}`;
+  } else cv.style.boxShadow="0 4px 22px rgba(10,20,50,0.10)";
+  }
+}
+
+function updateHezBar(){
+  const bar=document.getElementById("hezBar"), fill=document.getElementById("hezFill");
+  if(!bar||!fill||!bar.style) return;
+  const show = G.diff==="hez" && ["play","countdown","paused","dying","reassemble"].includes(G.state);
+  bar.style.display = show ? "block" : "none";
+  if(!show) return;
+  const f=Math.max(0, Math.min(1, G.hez/HEZ_MAX));
+  fill.style.width=(f*100).toFixed(1)+"%";
+  fill.style.background = f>0.5 ? "#3DFA7E" : f>0.25 ? "#FFC93F" : "#FF4D5E";
+  fill.style.opacity = f<0.25 ? (0.55+0.45*Math.abs(Math.sin(performance.now()/140))).toFixed(2) : "1";
+  fill.style.boxShadow = f<0.25 ? "0 0 10px #FF4D5E" : "none";
+}
+Music.onBeat=()=>{ G.pulse=1; };
+window.addEventListener("gamepadconnected",()=>{});
+window.addEventListener("pointerdown",()=>{ Music.ensure(); if(Music.ac&&Music.ac.state==="suspended") Music.ac.resume(); });
+loadFx();
+(async()=>{ await EDA.connect(); await Board.load(); })();
+const sideBoardEl=document.getElementById("sideBoard");
+if(sideBoardEl && sideBoardEl.addEventListener){
+  sideBoardEl.addEventListener("click", e=>{
+    if(e.target && e.target.id==="clearBoard") Board.requestClear();
+  });
+}
+showMenu();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

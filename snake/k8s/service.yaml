@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: snake-ui
+  namespace: eda-system
+  labels:
+    eda.nokia.com/app: snake
+spec:
+  type: ClusterIP
+  selector:
+    eda.nokia.com/app: snake
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

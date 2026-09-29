@@ -1,0 +1,42 @@
+apiVersion: core.eda.nokia.com/v1
+kind: Manifest
+metadata:
+  name: snake
+spec:
+  # ---- API resources -------------------------------------------------------
+  # Paths below are the ones `edabuilder generate` produces from the Go types
+  # in snake/api/v1alpha1. Re-run `edabuilder generate` after any API change;
+  # it maintains this section.
+  components:
+    - crd:
+        path: snake/crds/snake.eda.local_snakescores.yaml
+        schema: snake/openapiv3/eda_oas_snake.eda.local_snakescores.json
+    - crd:
+        path: snake/crds/snake.eda.local_snakeleaderboards.yaml
+        schema: snake/openapiv3/eda_oas_snake.eda.local_snakeleaderboards.json
+
+    # ---- state intent ------------------------------------------------------
+    # Ranks SnakeScore resources and republishes the board into the
+    # SnakeLeaderboard status. Also raises the new-high-score alarm.
+    - script:
+        path: snake/intents/snakeleaderboard/state_intent.py
+        trigger:
+          kind: SnakeLeaderboard
+        type: state
+
+    # ---- controller-based component: the game server -----------------------
+    # Snake serves a browser UI, so it ships a Deployment + Service rather than
+    # being a pure intent app.
+    - kubernetes:
+        path: snake/k8s/deployment.yaml
+    - kubernetes:
+        path: snake/k8s/service.yaml
+
+    # ---- RBAC --------------------------------------------------------------
+    - kubernetes:
+        path: snake/rbac/roles.yaml
+
+    # ---- bootstrap ---------------------------------------------------------
+    # One leaderboard per namespace so the state intent has something to run on.
+    - bootstrap:
+        path: snake/bootstrap/leaderboard.yaml

@@ -1,0 +1,32 @@
+# Playing only needs read access to the board. Resetting it deletes shared
+# state, so it is a separate role that must be bound deliberately.
+#
+# The UI hides the reset control without this permission, but the UI is not the
+# security boundary — EDA's own access control on the CR is.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eda-snake-player
+  labels:
+    eda.nokia.com/app: snake
+rules:
+  - apiGroups: ["snake.eda.local"]
+    resources: ["snakescores", "snakeleaderboards"]
+    verbs: ["get", "list", "watch", "create"]
+  - apiGroups: ["snake.eda.local"]
+    resources: ["snakeleaderboards/status", "snakescores/status"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eda-snake-admin
+  labels:
+    eda.nokia.com/app: snake
+rules:
+  - apiGroups: ["snake.eda.local"]
+    resources: ["snakescores", "snakeleaderboards"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["snake.eda.local"]
+    resources: ["snakeleaderboards/status", "snakescores/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]

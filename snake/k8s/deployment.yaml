@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snake-ui
+  namespace: eda-system
+  labels:
+    eda.nokia.com/app: snake
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      eda.nokia.com/app: snake
+  template:
+    metadata:
+      labels:
+        eda.nokia.com/app: snake
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: snake-ui
+          image: ghcr.io/nokia-gtm/eda-snake-ui:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            limits:
+              cpu: "500m" # app-set: ${uiCpuLimit}
+              memory: "128Mi" # app-set: ${uiMemoryLimit}
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+          readinessProbe:
+            httpGet: { path: /index.html, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /index.html, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
