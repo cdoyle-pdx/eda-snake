@@ -1,7 +1,7 @@
 # eda-snake
 
 Nokia Snake as an installable Nokia EDA application, built with `edabuilder`
-against the EDA **25.8** app development workflow and has been tested using
+against the EDA **25.8** app development workflow. It has been tested using
 version 26.8.1 of the EDA Playground and eda-telemetry lab. I can't promise
 it will work on older versions without testing.
 
@@ -9,13 +9,13 @@ The Fabric integration expects version 6.0.0 of the Fabrics application. It
 will complain if you try to install the EDA-Snake app on an EDA cluster
 running an older version (like v5.0.0).
 
-Admins play it in the same browser they already use for EDA, from the app's
-entry in the UI menu tree. The leaderboard is shared across everyone on the
-cluster because it lives in the EDB as custom resources.
+The game launches from the "Snake" app category in the EDA UI, opening a 
+new browser tab. The leaderboard exists as a series of custom resources in
+the EDB and is shared across all namespaces and users.
 
 ---
 
-## What kind of app this is
+## App integration summary
 
 EDA has two classes of app: intent apps written in MicroPython, and
 **controller-based apps** which can be written in any language. Snake is both:
@@ -27,7 +27,7 @@ EDA has two classes of app: intent apps written in MicroPython, and
 | `k8s/deployment.yaml` + `service.yaml` | Controller-based | The game is a browser UI, so it needs something serving it |
 
 No **config** intent exists, deliberately: Snake does not generate device
-configuration, so there is nothing for a config script to push. That said
+configuration, so there is nothing for a config script to push. That said,
 if a fabric isn't detected, the game will still play in a standalone mode.
 
 ## Installing EDA-Snake
