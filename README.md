@@ -35,6 +35,8 @@ No **config** intent exists, deliberately: Snake does not generate device
 configuration, so there is nothing for a config script to push. That said,
 if a fabric isn't detected, the game will still play in a standalone mode.
 
+---
+
 ## Installing EDA-Snake
 
 1. Configure my EDA app catalog (https://github.com/cdoyle-pdx/eda-catalog) on
@@ -48,6 +50,8 @@ settings can be left alone if you like, and the Name (required) has
 no functional significance (so call it whatever you like).
 6. Click the "Play Snake" app and click the 'View" link in the
 small Snake dashboard element to launch the game.
+
+---
 
 ## Known issues and considerations
 
