@@ -7,8 +7,7 @@ started with the idea and progressed through game development, testing,
 EDA integration, and EDA catalog repo creation. When encountered, errors
 were pasted back into the chat for diagnosis.
 
-### THE POINT IS THIS -> Anyone with an idea, regardless of their coding
-### experience, can convert an idea into an EDA application.
+### THE POINT IS THIS -> Anyone with an idea, regardless of their coding experience, can convert an idea into an EDA application.
 
 Development used the 'edabuilder' **25.8** app development workflow. It has
 been tested using version 26.8.1 of the EDA Playground and eda-telemetry lab.
