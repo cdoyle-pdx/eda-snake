@@ -1,0 +1,245 @@
+:root{
+    --hud-fg:#0B1B3A;
+    --accent:#005AFF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:#F4F6FB;
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    overflow:hidden;transition:background .8s linear;
+    user-select:none;-webkit-user-select:none;
+  }
+  #roomGlow{position:fixed;inset:0;pointer-events:none;z-index:0}
+  #hud,#playRow,#controlsHint{position:relative;z-index:1}
+  #playRow{display:flex;gap:18px;align-items:stretch;justify-content:center;
+           max-width:100vw;padding:0 10px}
+  #stage{flex:0 1 auto;min-width:0}
+  #sideBoard{
+    flex:0 0 auto;min-width:200px;padding:14px 16px;border-radius:12px;
+    background:rgba(255,255,255,.55);border:1px solid rgba(11,27,58,.12);
+    color:var(--hud-fg);display:flex;flex-direction:column;gap:6px;
+    transition:background .8s linear,color .8s linear,border-color .8s linear;
+  }
+  body.darkui #sideBoard{background:rgba(10,4,26,.45);border-color:rgba(124,247,255,.18)}
+  #sideBoard h2{
+    font-size:11px;letter-spacing:.30em;font-weight:700;text-transform:uppercase;
+    opacity:.6;margin-bottom:4px;text-align:center;
+  }
+  #sideBoard .row{
+    display:flex;justify-content:space-between;gap:10px;
+    font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.05em;opacity:.85;
+  }
+  #sideBoard .row .rk{opacity:.5;width:2ch;text-align:right}
+  #sideBoard .row .nm{font-weight:800;letter-spacing:.06em;flex:1;min-width:0;
+                       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #sideBoard .row.new{color:#7CF7FF;text-shadow:0 0 10px rgba(124,247,255,.8);opacity:1}
+  /* CSP (default-src 'self') blocks inline style attributes, so these live
+     here as classes rather than style="" in the markup. */
+  #sideBoard .row.backend{
+    opacity:.4;font-size:10px;letter-spacing:.14em;margin-top:6px;justify-content:center;
+  }
+  .overlay .hint.faint{opacity:.45}
+  .overlay .big.accent{color:var(--accent)}
+  body:not(.darkui) #sideBoard .row.new{color:#005AFF;text-shadow:none}
+  #sideBoard .row.r1{color:#FFD24A;opacity:1}
+  #sideBoard .row.r2{color:#D9E2EC;opacity:1}
+  #sideBoard .row.r3{color:#E0904F;opacity:1}
+  #sideBoard .row.r1 .rk,#sideBoard .row.r2 .rk,#sideBoard .row.r3 .rk{opacity:1}
+  #sideBoard .row.new.r1{text-shadow:0 0 10px rgba(255,210,74,.85)}
+  #sideBoard .row.new.r2{text-shadow:0 0 10px rgba(217,226,236,.85)}
+  #sideBoard .row.new.r3{text-shadow:0 0 10px rgba(224,144,79,.85)}
+  body:not(.darkui) #sideBoard .row.r1{color:#A8780A}
+  body:not(.darkui) #sideBoard .row.r2{color:#5F6E80}
+  body:not(.darkui) #sideBoard .row.r3{color:#9A4F1E}
+  body:not(.darkui) #sideBoard .row.new.r1,
+  body:not(.darkui) #sideBoard .row.new.r2,
+  body:not(.darkui) #sideBoard .row.new.r3{text-shadow:none;text-decoration:underline;text-underline-offset:3px}
+  #clearBoard{
+    margin-top:8px;padding:4px 10px;align-self:center;
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+    color:var(--hud-fg);opacity:.4;background:none;
+    border:1px solid currentColor;border-radius:999px;cursor:pointer;
+    transition:all .15s;
+  }
+  #clearBoard:hover{opacity:.8}
+  #clearBoard.confirm{opacity:1;color:#FF4D5E;border-color:#FF4D5E;box-shadow:0 0 10px rgba(255,77,94,.35)}
+  #hud{
+    width:min(96vw,1100px);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 18px;margin-bottom:10px;
+    color:var(--hud-fg);
+    font-weight:600;letter-spacing:.06em;
+    transition:color .8s linear;
+  }
+  #hud .box{display:flex;align-items:baseline;gap:10px}
+  #hud .lbl{font-size:11px;opacity:.55;text-transform:uppercase;letter-spacing:.18em}
+  #hud .val{font-size:22px;font-variant-numeric:tabular-nums}
+  #seq{display:flex;gap:6px;align-items:center}
+  #seq span{
+    display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;
+    border-radius:6px;font-size:14px;font-weight:800;
+    border:2px solid transparent;opacity:.28;transition:all .25s;
+  }
+  #seq span.next{opacity:1;border-color:var(--accent);transform:scale(1.15);
+    box-shadow:0 0 12px color-mix(in srgb,var(--accent) 60%, transparent)}
+  #seq span.done{opacity:.75}
+  #seq span{display:flex;align-items:center;justify-content:center}
+  #seq span.next{color:var(--accent)}
+  #seq svg{width:15px;height:15px;display:block}
+  #lives{letter-spacing:4px;font-size:18px}
+  #stage{position:relative;line-height:0;margin-top:14px}
+  #hezBar{
+    position:absolute;top:-12px;left:2px;right:2px;height:7px;
+    border-radius:99px;background:rgba(128,128,160,.25);overflow:hidden;display:none;
+  }
+  #hezFill{height:100%;width:100%;border-radius:99px;background:#3DFA7E;transition:background .3s}
+  canvas#game{
+    border-radius:12px;
+    max-width:100%;max-height:68vh;
+    image-rendering:auto;
+    transition:box-shadow .12s linear;
+  }
+  #scanlines{
+    position:absolute;inset:0;border-radius:12px;pointer-events:none;opacity:0;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;
+  }
+  .overlay{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:10px;border-radius:12px;
+    padding:16px;overflow:auto;
+    /* #stage sets line-height:0 to kill the inline-block gap under the canvas;
+       without this every line of overlay text stacks on top of the next. */
+    line-height:1.5;
+    background:rgba(6,2,18,.85);backdrop-filter:blur(4px);
+    color:#EAF0FF;text-align:center;z-index:5;
+  }
+  .overlay.show{display:flex}
+  /* The explainer has far more content than the level-1 canvas can show, so it
+     breaks out of #stage and uses the whole viewport. */
+  .overlay.wide{
+    position:fixed;inset:0;border-radius:0;z-index:50;
+    background:rgba(6,2,18,.93);
+  }
+  @media (max-height: 780px){
+    body.menuOpen .overlay.show{
+      position:fixed;inset:0;border-radius:0;z-index:50;
+      background:rgba(6,2,18,.93);
+    }
+  }
+  .overlay.wide #explain{
+    max-height:70vh;
+    /* opaque enough that the HUD behind it does not bleed through */
+    background:rgba(10,4,26,.97);
+  }
+  .overlay h1{font-size:14px;letter-spacing:.32em;font-weight:700;opacity:.7;text-transform:uppercase}
+  .overlay .big{font-size:40px;font-weight:800;letter-spacing:.05em}
+  .overlay .score{font-size:24px;font-variant-numeric:tabular-nums}
+  .overlay .hint{font-size:12px;opacity:.7;letter-spacing:.1em;line-height:1.7}
+  .overlay .hint b{color:#7CF7FF}
+  #board{
+    display:grid;grid-template-rows:repeat(5,auto);grid-auto-flow:column;gap:3px 34px;
+    font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:.06em;
+  }
+  #board .row{display:flex;justify-content:space-between;gap:14px;min-width:118px;opacity:.85}
+  #board .row .rk{opacity:.5;width:2ch;text-align:right}
+  #board .row .nm{font-weight:800;letter-spacing:.2em}
+  #board .row.new{color:#7CF7FF;text-shadow:0 0 10px rgba(124,247,255,.8);opacity:1}
+  #entryBoxes{display:flex;gap:6px;margin:4px 0;flex-wrap:wrap;justify-content:center;max-width:92vw}
+  #entryBoxes .slot{
+    width:36px;height:48px;border:2px solid rgba(255,255,255,.25);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;
+    transition:all .12s;
+  }
+  #entryBoxes .slot.blank{border-style:dashed;opacity:.45}
+  #entryBoxes .slot.on{border-color:#7CF7FF;box-shadow:0 0 16px rgba(124,247,255,.55);transform:scale(1.08)}
+  #diffSel{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  #diffSel .pill{
+    padding:5px 13px;border:2px solid rgba(255,255,255,.2);border-radius:999px;
+    font-size:11px;letter-spacing:.14em;opacity:.55;text-transform:uppercase;font-weight:700;
+    transition:all .15s;
+  }
+  #diffSel .pill.on{opacity:1;border-color:#7CF7FF;color:#7CF7FF;box-shadow:0 0 12px rgba(124,247,255,.45)}
+  #diffDesc{max-width:400px;min-height:3.4em;font-size:11px;opacity:.75}
+  .menuBtns{display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;justify-content:center}
+  .menuBtns button{
+    padding:7px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.28);
+    background:rgba(255,255,255,.06);color:#EAF0FF;cursor:pointer;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+    transition:all .15s;
+  }
+  .menuBtns button:hover{background:rgba(124,247,255,.16);border-color:#7CF7FF}
+  .menuBtns button.primary{background:#005AFF;border-color:#005AFF}
+  .menuBtns button.danger:hover{background:rgba(255,77,94,.2);border-color:#FF4D5E;color:#FF4D5E}
+  .menuBtns button[disabled]{opacity:.3;cursor:not-allowed}
+  #srcTag{
+    font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+    padding:3px 10px;border-radius:999px;border:1px solid currentColor;opacity:.8;
+  }
+  #srcTag.live{color:#3DFA7E}
+  #srcTag.offline{color:#FFC93F}
+  #explain{
+    max-width:680px;text-align:left;background:rgba(6,2,18,.6);
+    border:1px solid rgba(124,247,255,.25);border-radius:12px;padding:18px 22px;
+    max-height:52vh;overflow:auto;line-height:1.5;
+  }
+  #explain h3{
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.55;
+    margin-bottom:12px;line-height:1.4;
+  }
+  #explain table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.5}
+  #explain td{
+    padding:7px 8px;vertical-align:top;line-height:1.5;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  #explain tr:last-child td{border-bottom:none}
+  #explain td.k{opacity:.6;width:38%;padding-right:14px}
+  #explain td.v b{color:#7CF7FF;font-weight:700}
+  #explain td.v i{font-style:normal;opacity:.45}
+  #explain .foot{
+    margin-top:14px;padding-top:12px;font-size:11px;opacity:.55;line-height:1.6;
+    border-top:1px solid rgba(255,255,255,.08);
+  }
+  @media (max-width: 720px){
+    #explain td.k{width:auto;display:block;padding-bottom:0;border-bottom:none;opacity:.5}
+    #explain td.v{display:block;padding-top:2px}
+  }
+  #titleCanvas{margin-bottom:6px}
+  .pulseText{animation:pt 1.2s ease-in-out infinite}
+  @keyframes pt{0%,100%{opacity:.65}50%{opacity:1}}
+  @media (prefers-reduced-motion: reduce){ .pulseText{animation:none} }
+  /* --- laptops and small windows: the game must stay square and centered --- */
+  @media (max-height: 800px){
+    canvas#game{max-height:62vh}
+    #hud{padding:6px 14px;margin-bottom:6px}
+    #hud .val{font-size:18px}
+  }
+  @media (max-height: 640px){
+    canvas#game{max-height:56vh}
+    #controlsHint{display:none}
+    .overlay .big{font-size:30px}
+    #explain{max-height:44vh}
+  }
+  /* --- narrow: leaderboard drops below the field as a compact strip --- */
+  @media (max-width: 1080px){
+    #playRow{flex-direction:column;align-items:center;gap:10px}
+    #sideBoard{
+      min-width:0;width:100%;max-width:640px;
+      flex-direction:row;flex-wrap:wrap;justify-content:center;gap:4px 16px;
+      padding:10px 14px;
+    }
+    #sideBoard h2{width:100%;margin-bottom:2px}
+    #sideBoard .row{min-width:104px;font-size:12px}
+    #sideBoard #clearBoard{margin-top:4px}
+  }
+  @media (max-width: 720px){
+    #hud{flex-wrap:wrap;gap:6px 14px;justify-content:center}
+    #seq{order:3;width:100%;justify-content:center}
+    #sideBoard .row:nth-child(n+7){display:none}   /* top 5 only on small screens */
+  }
+  #controlsHint{margin-top:8px;font-size:12px;opacity:.55;letter-spacing:.08em;color:var(--hud-fg);transition:color .8s linear}
+  body.darkui #hud, body.darkui #controlsHint{ text-shadow:0 1px 8px rgba(0,0,0,.75) }
+  body.darkui #controlsHint{ opacity:.75 }
+  body.darkui #seq span{ text-shadow:0 1px 6px rgba(0,0,0,.8) }

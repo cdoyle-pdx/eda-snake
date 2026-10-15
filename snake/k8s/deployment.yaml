@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: snake-ui
-          image: ghcr.io/nokia-gtm/eda-snake-ui:v0.1.0
+          image: ghcr.io/cdoyle-pdx/eda-snake-ui:v1.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -48,11 +48,18 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 20
           volumeMounts:
+            # readOnlyRootFilesystem means every path nginx writes to needs a
+            # volume. This image puts proxy/client temp files under /tmp, which
+            # is what CrashLoopBackOff'd the first build.
+            - name: tmp
+              mountPath: /tmp
             - name: cache
               mountPath: /var/cache/nginx
             - name: run
               mountPath: /var/run
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: cache
           emptyDir: {}
         - name: run

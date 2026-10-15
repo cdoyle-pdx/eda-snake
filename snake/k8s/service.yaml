@@ -6,7 +6,11 @@ metadata:
   labels:
     eda.nokia.com/app: snake
 spec:
-  type: ClusterIP
+  # LoadBalancer gives the game a stable address on the lab network, so it no
+  # longer depends on a port-forward. NOTE: this is a different origin from the
+  # EDA UI, so the browser will not send EDA session cookies to it and the game
+  # runs in standalone mode. Serving through EDA's own origin is what fixes that.
+  type: LoadBalancer
   selector:
     eda.nokia.com/app: snake
   ports:

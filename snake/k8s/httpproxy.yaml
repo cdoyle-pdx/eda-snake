@@ -1,0 +1,23 @@
+# Serves the game from EDA's own origin:
+#
+#     https://<eda-host>:9443/core/httpproxy/v1/snake/
+#
+# This is what makes the leaderboard real. The browser only sends EDA session
+# cookies to EDA's origin, so a game served from its own LoadBalancer IP can
+# never authenticate - whoami fails and it falls back to localStorage. Proxied
+# through here, the session travels with the game's API calls and scores land
+# as SnakeScore CRs.
+#
+# Shipping it as an app component means installing the app registers the proxy;
+# nobody has to create it by hand.
+apiVersion: core.eda.nokia.com/v1
+kind: HttpProxy
+metadata:
+  name: snake
+  namespace: eda-system
+spec:
+  # Mirrors the gogs and docs proxies: the destination handles its own auth.
+  authType: atDestination
+  # {EDA_CORE_NAMESPACE} is substituted at runtime, as the docs proxy does,
+  # so this keeps working if the core namespace differs.
+  rootUrl: http://snake-ui.{EDA_CORE_NAMESPACE}.svc/

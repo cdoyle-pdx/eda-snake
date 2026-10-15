@@ -1,0 +1,75 @@
+{
+    "uuid": "88977ea4-1df2-46e9-bf44-96e1c22b8b1b",
+    "name": "SnakeLeaderBoard",
+    "version": "1.0.0",
+    "displayName": "Play Snake",
+    "showNavigationToolbar": true,
+    "screens": [
+        {
+            "name": "Hissss",
+            "uuid": "73587fe5-6125-432a-909a-13a5796b3881",
+            "screenType": "dashboard",
+            "partOfNav": true,
+            "startScreen": true,
+            "type": "screen",
+            "url": "Dashboard-0",
+            "components": [
+                {
+                    "uuid": "f310767f-8fcc-4003-8c84-5539139142f0",
+                    "name": "",
+                    "type": "flexRow",
+                    "flexDirection": "row",
+                    "components": [
+                        {
+                            "id": "dashletDataView",
+                            "uuid": "6c68fad7-9f0a-4431-85c4-bcd33a356f22",
+                            "name": "",
+                            "type": "dashletDataView",
+                            "title": "Snake",
+                            "subtitle": "Click VIEW to play!",
+                            "width": 300,
+                            "height": 300,
+                            "parentFlexType": "row",
+                            "navigationTarget": {
+                                "edaRoute": "external",
+                                "useNewTab": true,
+                                "targetReference": "/core/httpproxy/v1/snake/"
+                            },
+                            "showInfoPanel": true,
+                            "showStatusBar": true,
+                            "showFilters": false,
+                            "fillWidth": false,
+                            "filterable": false
+                        },
+                        {
+                            "id": "dashletDataView",
+                            "uuid": "aa9ac6af-a107-40f6-8eb6-88fb0364807a",
+                            "name": "",
+                            "type": "dashletDataView",
+                            "title": "Scores",
+                            "subtitle": "Top runs recorded by the Snake app",
+                            "width": 800,
+                            "height": 500,
+                            "parentFlexType": "row",
+                            "navigationTarget": {
+                                "edaRoute": "resources",
+                                "targetReference": "eda.cdoyle.dev/v1alpha1/snakescores",
+                                "filter": ""
+                            },
+                            "showStatusBar": true,
+                            "showFilters": true,
+                            "componentConfiguration": {
+                                "apiConfiguration": {
+                                    "api": ".namespace.resources.cr.eda_cdoyle_dev.v1alpha1.snakescore",
+                                    "queryType": "eql",
+                                    "requestType": "get"
+                                }
+                            },
+                            "navQuery": ".namespace.resources.cr.eda_cdoyle_dev.v1alpha1.snakescore"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

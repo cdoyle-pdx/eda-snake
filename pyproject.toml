@@ -1,0 +1,16 @@
+[project]
+name = "eda-snake-scaffold"
+version = "0.1.0"
+description = "EDA App Development Project"
+readme = "README.md"
+requires-python = "~=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = ["ruff>=0.9.3"]
+
+[tool.pyright]
+extraPaths = ["test"]
+
+[tool.ty.environment]
+extra-paths = ["test"]

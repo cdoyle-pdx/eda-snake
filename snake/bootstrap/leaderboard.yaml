@@ -1,8 +1,0 @@
-apiVersion: snake.eda.local/v1alpha1
-kind: SnakeLeaderboard
-metadata:
-  name: default
-spec:
-  size: 10
-  difficulty: ""
-  highScoreAlarm: true

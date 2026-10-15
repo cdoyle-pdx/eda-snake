@@ -1,0 +1,68 @@
+{
+  "description": "SnakeConfig is the Schema for the snakeconfigs API",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "spec": {
+      "description": "SnakeConfigSpec holds the settings an operator may want to change without\nrebuilding the container image.\n\nThe UI finds this CR with an EQL query rather than a fixed path, because the\nquery endpoint is not namespace-qualified: that way an admin can create it\nwherever they like and the game still picks it up. If no SnakeConfig exists,\nthe defaults below apply and the app works out of the box.\n\nEvery field is optional. The UI clamps values it cannot render rather than\ntrusting them, so a bad edit degrades to the default instead of breaking the\ngame.",
+      "type": "object",
+      "title": "Specification",
+      "properties": {
+        "boardSize": {
+          "description": "BoardSize is how many entries the leaderboard shows.",
+          "type": "integer",
+          "default": 10,
+          "maximum": 50,
+          "minimum": 3
+        },
+        "defaultDifficulty": {
+          "description": "DefaultDifficulty is the skill ramp the menu opens on. Players can still\npick any mode; this only sets the starting selection, which is useful for\nan unattended booth machine.",
+          "type": "string",
+          "default": "normal",
+          "enum": [
+            "normal",
+            "hard",
+            "hez"
+          ]
+        },
+        "scoreNamespace": {
+          "description": "ScoreNamespace is where SnakeScore CRs are written and read.\n\nScores deliberately live in ONE namespace so a single leaderboard covers\nthe event however many fabrics the lab has - a run against one fabric\nstill competes with a run against another. Changing this after scores\nexist leaves the old ones behind in the previous namespace.",
+          "type": "string",
+          "default": "eda",
+          "maxLength": 63,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        }
+      },
+      "x-eda-nokia-com": {
+        "ui-default-columns": [
+          ".metadata.name",
+          ".metadata.namespace",
+          ".metadata.labels",
+          ".metadata.annotations",
+          ".deviations.count",
+          ".spec.defaultDifficulty"
+        ],
+        "ui-order-priority": 30
+      }
+    },
+    "status": {
+      "description": "SnakeConfigStatus is intentionally empty.\n\nSnakeConfig is pure configuration: it is read by the browser, and no intent\nreconciles it, so there is nothing for a controller to report back. The type\nexists because edabuilder's generated base types reference both a Spec and a\nStatus for every kind.",
+      "type": "object",
+      "title": "Status",
+      "readOnly": true,
+      "x-eda-nokia-com": {
+        "ui-order-priority": 20
+      }
+    }
+  }
+}

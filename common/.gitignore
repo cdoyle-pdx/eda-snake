@@ -1,0 +1,3 @@
+# common/ embed is an app, ignore its go.sum
+go.sum
+go.work.sum

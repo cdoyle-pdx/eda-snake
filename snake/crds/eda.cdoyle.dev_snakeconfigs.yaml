@@ -1,0 +1,96 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: snakeconfigs.eda.cdoyle.dev
+spec:
+  group: eda.cdoyle.dev
+  names:
+    kind: SnakeConfig
+    listKind: SnakeConfigList
+    plural: snakeconfigs
+    singular: snakeconfig
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SnakeConfig is the Schema for the snakeconfigs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              SnakeConfigSpec holds the settings an operator may want to change without
+              rebuilding the container image.
+
+              The UI finds this CR with an EQL query rather than a fixed path, because the
+              query endpoint is not namespace-qualified: that way an admin can create it
+              wherever they like and the game still picks it up. If no SnakeConfig exists,
+              the defaults below apply and the app works out of the box.
+
+              Every field is optional. The UI clamps values it cannot render rather than
+              trusting them, so a bad edit degrades to the default instead of breaking the
+              game.
+            properties:
+              boardSize:
+                default: 10
+                description: BoardSize is how many entries the leaderboard shows.
+                maximum: 50
+                minimum: 3
+                type: integer
+              defaultDifficulty:
+                default: normal
+                description: |-
+                  DefaultDifficulty is the skill ramp the menu opens on. Players can still
+                  pick any mode; this only sets the starting selection, which is useful for
+                  an unattended booth machine.
+                enum:
+                - normal
+                - hard
+                - hez
+                type: string
+              scoreNamespace:
+                default: eda
+                description: |-
+                  ScoreNamespace is where SnakeScore CRs are written and read.
+
+                  Scores deliberately live in ONE namespace so a single leaderboard covers
+                  the event however many fabrics the lab has - a run against one fabric
+                  still competes with a run against another. Changing this after scores
+                  exist leaves the old ones behind in the previous namespace.
+                maxLength: 63
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+            type: object
+          status:
+            description: |-
+              SnakeConfigStatus is intentionally empty.
+
+              SnakeConfig is pure configuration: it is read by the browser, and no intent
+              reconciles it, so there is nothing for a controller to report back. The type
+              exists because edabuilder's generated base types reference both a Spec and a
+              Status for every kind.
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

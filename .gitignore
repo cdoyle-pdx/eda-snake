@@ -4,3 +4,14 @@ __pycache__/
 .env
 .envrc
 go.work.sum
+.venv
+.vscode
+*/build
+private
+.sign/
+*.key
+*.tar.gz
+snake/ui-src/split/
+snake/ui-src/eda_globals.js
+snake/ui-src/check-eda.js
+snake/ui-src/*.png

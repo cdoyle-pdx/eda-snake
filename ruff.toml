@@ -1,0 +1,20 @@
+# Allow lines to be as long as 120.
+line-length = 120
+
+[lint]
+
+select = [
+    "E", # pycodestyle
+    "F", # Pyflakes
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "SIM", # flake8-simplify
+    "I", # isort
+    "D", # pydocstyle
+]
+ignore = [
+
+]
+
+# Allow autofix for all selected rules
+fixable = ["ALL"]

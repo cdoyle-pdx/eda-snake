@@ -1,0 +1,39 @@
+# Playing only needs read access to the board plus the ability to add a score.
+# Resetting it deletes shared state, so it is a separate role that must be bound
+# deliberately.
+#
+# The UI hides the reset control without this permission, but the UI is not the
+# security boundary — EDA's own access control on the CR is.
+#
+# These are ClusterRoles, so the rules are not namespace-bound: scores can live
+# in whatever namespace SnakeConfig names without editing RBAC.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eda-snake-player
+  labels:
+    eda.nokia.com/app: snake
+rules:
+  - apiGroups: ["eda.cdoyle.dev"]
+    resources: ["snakescores"]
+    verbs: ["get", "list", "watch", "create"]
+  - apiGroups: ["eda.cdoyle.dev"]
+    resources: ["snakeconfigs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["eda.cdoyle.dev"]
+    resources: ["snakescores/status"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eda-snake-admin
+  labels:
+    eda.nokia.com/app: snake
+rules:
+  - apiGroups: ["eda.cdoyle.dev"]
+    resources: ["snakescores", "snakeconfigs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["eda.cdoyle.dev"]
+    resources: ["snakescores/status"]
+    verbs: ["get", "list", "watch", "update", "patch"]
