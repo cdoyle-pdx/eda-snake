@@ -14,18 +14,18 @@
       "type": "object"
     },
     "spec": {
-      "description": "SnakeScoreSpec is one leaderboard entry.\n\nScores are ordinary EDA resources: created inside a transaction, written to\ngit on commit, and therefore revision-controlled like any other intent.\n\nSnakeScore is the ONLY record the leaderboard keeps. There were once a\nSnakeLeaderboard config CR and a SnakeLeaderboardState CR whose status held a\npre-ranked board, because an EDA config intent cannot write status. Nothing\nneeded that: the EDA dashboard sorts these rows itself and ten entries sort\ninstantly in the browser.",
+      "description": "SnakeScoreSpec is one completed run of the Snake game: one leaderboard entry.\n\nTo rank runs, sort by score, highest first. When two runs share a score, the\none with the earlier recordedAt ranks higher. The leaderboard spans every\ndifficulty unless filtered by the difficulty field.\n\nplayer and edaUser are deliberately different things. player is the person\nwho actually played, as they typed their name at the end of the run.\nedaUser is only the EDA account the browser was logged in as. At an event\nmany different people play on one shared login, so always identify who\nscored by player, never by edaUser.\n\nSnakeScore is the only record the leaderboard keeps; nothing reconciles it.",
       "type": "object",
       "title": "Specification",
       "required": [
         "difficulty",
-        "initials",
         "level",
+        "player",
         "score"
       ],
       "properties": {
         "difficulty": {
-          "description": "Difficulty is the skill ramp the run was played on. Ramps are synthetic\nand deterministic, so scores are comparable within a difficulty.",
+          "description": "Difficulty is the mode the run was played on: normal, hard, or hez\n(Human Error Zero, the hardest). Speed and obstacles are fixed per mode,\nso scores are directly comparable within a difficulty.",
           "type": "string",
           "enum": [
             "normal",
@@ -33,32 +33,32 @@
             "hez"
           ]
         },
+        "edaUser": {
+          "description": "EdaUser is the EDA account the game was logged in as when the score was\nrecorded (preferred_username from the EDA login token). It identifies the\nmachine or session, NOT the player: many players may share one account.",
+          "type": "string"
+        },
         "fabricNodes": {
-          "description": "FabricNodes records how large the fabric was during the run, so scores\nstay interpretable after the topology changes.",
+          "description": "FabricNodes is how many nodes the fabric had during the run. The arena\nfor levels 1-5 is sized from the fabric, so this keeps scores\ninterpretable after the topology changes.",
           "type": "integer",
           "minimum": 0
         },
-        "initials": {
-          "description": "Initials is the name on the board, 1-10 capital letters, prefilled from the\nauthenticated EDA username by the UI.",
-          "type": "string",
-          "pattern": "^[A-Z]{1,10}$"
-        },
         "level": {
-          "description": "Level reached when the run ended.",
+          "description": "Level is the level reached when the run ended, from 1 to 20.",
           "type": "integer",
           "maximum": 20,
           "minimum": 1
         },
         "player": {
-          "description": "Player is the authenticated EDA user who set the score.",
-          "type": "string"
+          "description": "Player is the name of the person who played this run, as entered on the\ngame-over screen: 1-10 capital letters. This is who the score belongs to.\nIt is prefilled from the EDA username but the player usually changes it,\nsince several people commonly share one EDA login.",
+          "type": "string",
+          "pattern": "^[A-Z]{1,10}$"
         },
         "recordedAt": {
-          "description": "RecordedAt is an RFC3339 timestamp set by the UI. It is also the\ntie-breaker when two runs share a score: the earlier run ranks higher.",
+          "description": "RecordedAt is when the run ended, as an RFC3339 timestamp. It breaks ties\nbetween equal scores: the earlier run ranks higher.",
           "type": "string"
         },
         "score": {
-          "description": "Score is the final score for the run.",
+          "description": "Score is the final score for the run. Higher is better.",
           "type": "integer",
           "minimum": 0
         }
@@ -76,19 +76,9 @@
       }
     },
     "status": {
-      "description": "SnakeScoreStatus is no longer populated.\n\nIt was written by the leaderboard state intent, which has been removed along\nwith the two leaderboard CRDs. Ranking now happens in the browser at read\ntime. The fields are kept so existing CRs stay valid; nothing reads them.\n\nWorth stating plainly: validation is therefore advisory. The intent used to\nreject impossible scores server-side and nothing does now, so a determined\nplayer with devtools could POST a fabricated entry. That is an accepted\ntrade for a booth leaderboard, not an oversight.",
+      "description": "SnakeScoreStatus is intentionally empty.\n\nNothing reconciles a SnakeScore, so there is nothing to report. It used to\ncarry rank and accepted fields written by a since-removed intent; they were\nalways empty and are gone, so they can't be mistaken for a real ranking.\nRank is computed at read time: see the ordering rule on SnakeScoreSpec.",
       "type": "object",
       "title": "Status",
-      "properties": {
-        "accepted": {
-          "description": "Accepted is false when validation rejected the entry.",
-          "type": "boolean"
-        },
-        "rank": {
-          "description": "Rank within the current difficulty, 1 being the highest.",
-          "type": "integer"
-        }
-      },
       "readOnly": true,
       "x-eda-nokia-com": {
         "ui-order-priority": 20

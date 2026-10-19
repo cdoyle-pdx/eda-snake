@@ -768,7 +768,7 @@ const EDA = {
      API reachability is what decides whether we are "live" - NOT identity.
      An earlier version gated everything on a whoami endpoint; when that 404'd
      the game fell back to standalone even though the API was fine. Identity is
-     now a best-effort extra that only affects prefilled initials. */
+     now a best-effort extra that only affects the prefilled player name. */
   async connect(){
     this.online = false;
     this.fabric = null;
@@ -802,7 +802,7 @@ const EDA = {
 
   /* ---- identity: best effort, never fatal ----
      The endpoint differs between EDA builds, so a few known shapes are tried
-     and a miss simply means initials are not prefilled. Permissions are NOT
+     and a miss simply means the player name is not prefilled. Permissions are NOT
      inferred here: the reset control is offered and the API enforces it, which
      is the only enforcement that was ever real. */
   async readIdentity(){
@@ -814,7 +814,7 @@ const EDA = {
       this.user.name = name;
       this.user.endpoint = "oidc:access_token";
     }else{
-      this.user.name = "";          // no prefill; the player types their initials
+      this.user.name = "";          // no prefill; the player types their name
       this.user.endpoint = null;
     }
   },
@@ -993,8 +993,8 @@ const EDA = {
     const rows = this.rows(await this.api(Config.scoresPath()));
     return rows.map(it=>{
       const sp = it.spec || it;
-      return { name: sp.initials, score: Number(sp.score) || 0,
-               level: sp.level, diff: sp.difficulty, by: sp.player,
+      return { name: sp.player, score: Number(sp.score) || 0,
+               level: sp.level, diff: sp.difficulty, edaUser: sp.edaUser,
                at: sp.recordedAt || "" };
     })
     .filter(e=>e.name)
@@ -1002,12 +1002,15 @@ const EDA = {
     .sort((a,b)=> b.score - a.score || String(a.at).localeCompare(String(b.at)))
     .slice(0, Config.boardSize);
   },
-  async postScore(initials, score, level, diff){
+  /* player  = the name typed on the game-over screen: who actually played.
+     edaUser = the EDA login the browser happens to be using. At an event many
+     people share one login, so the two are deliberately separate fields. */
+  async postScore(player, score, level, diff){
     const body = {
       apiVersion: SNAKE_GROUP, kind:"SnakeScore",
-      metadata:{ name:`score-${Date.now()}-${initials.toLowerCase()}`,
+      metadata:{ name:`score-${Date.now()}-${player.toLowerCase()}`,
                  namespace: Config.scoreNamespace },
-      spec:{ initials, score, level, difficulty:diff, player:this.user.name,
+      spec:{ player, score, level, difficulty:diff, edaUser:this.user.name,
              recordedAt:new Date().toISOString(),
              fabricNodes:(this.fabric&&this.fabric.nodes)?this.fabric.nodes.length:0 }
     };

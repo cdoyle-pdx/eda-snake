@@ -16,71 +16,71 @@ limitations under the License.
 
 package v1alpha1
 
-// SnakeScoreSpec is one leaderboard entry.
+// SnakeScoreSpec is one completed run of the Snake game: one leaderboard entry.
 //
-// Scores are ordinary EDA resources: created inside a transaction, written to
-// git on commit, and therefore revision-controlled like any other intent.
+// To rank runs, sort by score, highest first. When two runs share a score, the
+// one with the earlier recordedAt ranks higher. The leaderboard spans every
+// difficulty unless filtered by the difficulty field.
 //
-// SnakeScore is the ONLY record the leaderboard keeps. There were once a
-// SnakeLeaderboard config CR and a SnakeLeaderboardState CR whose status held a
-// pre-ranked board, because an EDA config intent cannot write status. Nothing
-// needed that: the EDA dashboard sorts these rows itself and ten entries sort
-// instantly in the browser.
+// player and edaUser are deliberately different things. player is the person
+// who actually played, as they typed their name at the end of the run.
+// edaUser is only the EDA account the browser was logged in as. At an event
+// many different people play on one shared login, so always identify who
+// scored by player, never by edaUser.
+//
+// SnakeScore is the only record the leaderboard keeps; nothing reconciles it.
 // +eda:ui:defaultcolumns=.metadata.name
 // +eda:ui:defaultcolumns=.metadata.namespace
-// +eda:ui:defaultcolumns=.spec.initials
+// +eda:ui:defaultcolumns=.spec.player
 // +eda:ui:defaultcolumns=.spec.score
 // +eda:ui:defaultcolumns=.spec.level
 // +eda:ui:defaultcolumns=.spec.difficulty
-// +eda:ui:defaultcolumns=.spec.player
+// +eda:ui:defaultcolumns=.spec.edaUser
 // +eda:ui:defaultcolumns=.spec.recordedAt
 type SnakeScoreSpec struct {
-	// Initials is the name on the board, 1-10 capital letters, prefilled from the
-	// authenticated EDA username by the UI.
+	// Player is the name of the person who played this run, as entered on the
+	// game-over screen: 1-10 capital letters. This is who the score belongs to.
+	// It is prefilled from the EDA username but the player usually changes it,
+	// since several people commonly share one EDA login.
 	// +kubebuilder:validation:Pattern=`^[A-Z]{1,10}$`
-	Initials string `json:"initials"`
+	Player string `json:"player"`
 
-	// Score is the final score for the run.
+	// Score is the final score for the run. Higher is better.
 	// +kubebuilder:validation:Minimum=0
 	Score int `json:"score"`
 
-	// Level reached when the run ended.
+	// Level is the level reached when the run ended, from 1 to 20.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=20
 	Level int `json:"level"`
 
-	// Difficulty is the skill ramp the run was played on. Ramps are synthetic
-	// and deterministic, so scores are comparable within a difficulty.
+	// Difficulty is the mode the run was played on: normal, hard, or hez
+	// (Human Error Zero, the hardest). Speed and obstacles are fixed per mode,
+	// so scores are directly comparable within a difficulty.
 	// +kubebuilder:validation:Enum=normal;hard;hez
 	Difficulty string `json:"difficulty"`
 
-	// Player is the authenticated EDA user who set the score.
-	Player string `json:"player,omitempty"`
+	// EdaUser is the EDA account the game was logged in as when the score was
+	// recorded (preferred_username from the EDA login token). It identifies the
+	// machine or session, NOT the player: many players may share one account.
+	EdaUser string `json:"edaUser,omitempty"`
 
-	// RecordedAt is an RFC3339 timestamp set by the UI. It is also the
-	// tie-breaker when two runs share a score: the earlier run ranks higher.
+	// RecordedAt is when the run ended, as an RFC3339 timestamp. It breaks ties
+	// between equal scores: the earlier run ranks higher.
 	RecordedAt string `json:"recordedAt,omitempty"`
 
-	// FabricNodes records how large the fabric was during the run, so scores
-	// stay interpretable after the topology changes.
+	// FabricNodes is how many nodes the fabric had during the run. The arena
+	// for levels 1-5 is sized from the fabric, so this keeps scores
+	// interpretable after the topology changes.
 	// +kubebuilder:validation:Minimum=0
 	FabricNodes int `json:"fabricNodes,omitempty"`
 }
 
-// SnakeScoreStatus is no longer populated.
+// SnakeScoreStatus is intentionally empty.
 //
-// It was written by the leaderboard state intent, which has been removed along
-// with the two leaderboard CRDs. Ranking now happens in the browser at read
-// time. The fields are kept so existing CRs stay valid; nothing reads them.
-//
-// Worth stating plainly: validation is therefore advisory. The intent used to
-// reject impossible scores server-side and nothing does now, so a determined
-// player with devtools could POST a fabricated entry. That is an accepted
-// trade for a booth leaderboard, not an oversight.
+// Nothing reconciles a SnakeScore, so there is nothing to report. It used to
+// carry rank and accepted fields written by a since-removed intent; they were
+// always empty and are gone, so they can't be mistaken for a real ranking.
+// Rank is computed at read time: see the ordering rule on SnakeScoreSpec.
 type SnakeScoreStatus struct {
-	// Rank within the current difficulty, 1 being the highest.
-	Rank int `json:"rank,omitempty"`
-
-	// Accepted is false when validation rejected the entry.
-	Accepted bool `json:"accepted,omitempty"`
 }

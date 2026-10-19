@@ -21,7 +21,7 @@ spec:
         path: snake/intents
   description: Nokia Snake — a playable arcade game that draws its arena from your live fabric topology, with scores stored as EDA resources.
   group: eda.cdoyle.dev
-  image: ghcr.io/cdoyle-pdx/snake:v1.1.0
+  image: ghcr.io/cdoyle-pdx/snake:v2.0.0
   supportedCoreVersions:
     - v6.0.0
   title: Snake

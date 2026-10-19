@@ -40,9 +40,9 @@ OIDC.timeoutMs=120;
 const b=(o)=>Buffer.from(JSON.stringify(o)).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const TOKEN=b({alg:"RS256"})+"."+b({preferred_username:"admin"})+".sig";
 
-const cr=(initials,score,level,at,diff="normal")=>({
-  metadata:{name:`score-${at}-${initials.toLowerCase()}`,namespace:"eda"},
-  spec:{initials,score,level,difficulty:diff,player:"admin",recordedAt:at}});
+const cr=(player,score,level,at,diff="normal")=>({
+  metadata:{name:`score-${at}-${player.toLowerCase()}`,namespace:"eda"},
+  spec:{player,score,level,difficulty:diff,edaUser:"admin",recordedAt:at}});
 
 let store, posted, deleted;
 function server(envelope){
@@ -89,7 +89,8 @@ ok(board.length===3,                 "all three scores returned");
 ok(board[0].name==="BBB" && board[0].score===900, "highest score first");
 ok(board[2].name==="AAA",            "lowest score last");
 ok(board[0].level===9,               "level carried through");
-ok(board[0].by==="admin",            "player carried through");
+ok(board[0].name==="BBB",            "board name comes from spec.player");
+ok(board[0].edaUser==="admin",       "EDA login carried separately as edaUser");
 
 // --- ties go to whoever got there first -----------------------------------
 reset();
@@ -122,7 +123,7 @@ for(const [label, env] of [["{items:[...]}", s=>({items:s})],
 
 // --- flattened rows (no spec wrapper) ------------------------------------
 reset();
-store=[{metadata:{name:"score-flat"}, initials:"FLT", score:77, level:2, difficulty:"hard", recordedAt:"2026-10-02T10:00:00Z"}];
+store=[{metadata:{name:"score-flat"}, player:"FLT", score:77, level:2, difficulty:"hard", recordedAt:"2026-10-02T10:00:00Z"}];
 globalThis.fetch=route(server(s=>({items:s})));
 await Auth.ensure(); EDA.online=true;
 board=await EDA.listScores();
@@ -135,7 +136,7 @@ store=[cr("GUD",50,1,"2026-10-02T10:00:00Z"), {metadata:{name:"junk"}, spec:{sco
 globalThis.fetch=route(server(s=>({items:s})));
 await Auth.ensure(); EDA.online=true;
 board=await EDA.listScores();
-ok(board.length===1 && board[0].name==="GUD", "row with no initials dropped rather than shown blank");
+ok(board.length===1 && board[0].name==="GUD", "row with no player name dropped rather than shown blank");
 
 // --- the write ------------------------------------------------------------
 reset();
@@ -149,9 +150,11 @@ const p=posted[0];
 ok(p.kind==="SnakeScore" && p.apiVersion==="eda.cdoyle.dev/v1alpha1", "correct kind and apiVersion");
 ok(p.metadata.namespace==="eda",   "written to the scores namespace");
 ok(/^score-\d+-cdy$/.test(p.metadata.name), "unique CR name: "+p.metadata.name);
-ok(p.spec.initials==="CDY" && p.spec.score===1234 && p.spec.level===7, "spec carries the run");
+ok(p.spec.player==="CDY" && p.spec.score===1234 && p.spec.level===7, "spec carries the run, name in player");
+ok(!("initials" in p.spec), "the retired initials field is no longer sent");
 ok(p.spec.difficulty==="hez",      "difficulty recorded");
-ok(p.spec.player==="admin",        "player taken from the token identity");
+ok(p.spec.edaUser==="admin",       "EDA login recorded separately as edaUser");
+ok(p.spec.player!==p.spec.edaUser,  "player and edaUser are independent (typed name vs login)");
 ok(p.spec.fabricNodes===2,         "fabric size captured alongside the score");
 ok(!isNaN(Date.parse(p.spec.recordedAt)), "recordedAt is a valid timestamp");
 

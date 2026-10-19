@@ -16,30 +16,30 @@ SNAKESCORE_SCHEMA = eda.Schema(group="eda.cdoyle.dev", version="v1alpha1", kind=
 class SnakeScoreSpec:
     def __init__(
         self,
-        initials: str,
+        player: str,
         score: int,
         level: int,
         difficulty: str,
-        player: str | None = None,
+        eda_user: str | None = None,
         recorded_at: str | None = None,
         fabric_nodes: int | None = None,
     ):
-        self.initials = initials
+        self.player = player
         self.score = score
         self.level = level
         self.difficulty = difficulty
-        self.player = player
+        self.eda_user = eda_user
         self.recorded_at = recorded_at
         self.fabric_nodes = fabric_nodes
 
     def to_input(self):
         _rval = {}
-        _rval[constants.Y_INITIALS] = self.initials
+        _rval[constants.Y_PLAYER] = self.player
         _rval[constants.Y_SCORE] = self.score
         _rval[constants.Y_LEVEL] = self.level
         _rval[constants.Y_DIFFICULTY] = self.difficulty
-        if self.player is not None:
-            _rval[constants.Y_PLAYER] = self.player
+        if self.eda_user is not None:
+            _rval[constants.Y_EDAUSER] = self.eda_user
         if self.recorded_at is not None:
             _rval[constants.Y_RECORDEDAT] = self.recorded_at
         if self.fabric_nodes is not None:
@@ -50,19 +50,19 @@ class SnakeScoreSpec:
     def from_input(obj) -> "SnakeScoreSpec | None":
         if not obj:
             return None
-        _initials = obj.get(constants.Y_INITIALS)
+        _player = obj.get(constants.Y_PLAYER)
         _score = obj.get(constants.Y_SCORE)
         _level = obj.get(constants.Y_LEVEL)
         _difficulty = obj.get(constants.Y_DIFFICULTY)
-        _player = obj.get(constants.Y_PLAYER)
+        _eda_user = obj.get(constants.Y_EDAUSER)
         _recorded_at = obj.get(constants.Y_RECORDEDAT)
         _fabric_nodes = obj.get(constants.Y_FABRICNODES)
         return SnakeScoreSpec(
-            initials=_initials,
+            player=_player,
             score=_score,
             level=_level,
             difficulty=_difficulty,
-            player=_player,
+            eda_user=_eda_user,
             recorded_at=_recorded_at,
             fabric_nodes=_fabric_nodes,
         )
@@ -71,30 +71,18 @@ class SnakeScoreSpec:
 class SnakeScoreStatus:
     def __init__(
         self,
-        rank: int | None = None,
-        accepted: bool | None = None,
     ):
-        self.rank = rank
-        self.accepted = accepted
+        pass
 
     def to_input(self):
         _rval = {}
-        if self.rank is not None:
-            _rval[constants.Y_RANK] = self.rank
-        if self.accepted is not None:
-            _rval[constants.Y_ACCEPTED] = self.accepted
         return _rval
 
     @staticmethod
     def from_input(obj) -> "SnakeScoreStatus | None":
         if not obj:
             return None
-        _rank = obj.get(constants.Y_RANK)
-        _accepted = obj.get(constants.Y_ACCEPTED)
-        return SnakeScoreStatus(
-            rank=_rank,
-            accepted=_accepted,
-        )
+        return SnakeScoreStatus()
 
 
 class SnakeScore:
