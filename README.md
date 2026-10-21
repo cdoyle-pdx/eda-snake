@@ -1,5 +1,10 @@
 # eda-snake
 
+<p align="center">
+  <img src="images/Snake_1.png" width="45.5%" alt="Snake Game Menu Screen" />
+  <img src="images/Snake_3.png" width="43%" alt="Snake Gameplay" />
+</p>
+
 EDA Snake as an installable Nokia EDA application,100% vibe-coded over the
 course of a few days using Claude Opus 4.5 (medium). I have Claude Pro and
 was able to build this without exceeding any included limits. The process
@@ -34,6 +39,10 @@ EDA has two classes of app: intent apps written in MicroPython, and
 No **config** intent exists, deliberately: Snake does not generate device
 configuration, so there is nothing for a config script to push. That said,
 if a fabric isn't detected, the game will still play in a standalone mode.
+
+<p align="center">
+  <img src="images/Snake_2.png" width="60%" alt="Snake Integration Screen" />
+</p>
 
 ---
 
